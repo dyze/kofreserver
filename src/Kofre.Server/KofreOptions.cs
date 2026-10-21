@@ -22,6 +22,9 @@ public sealed class KofreOptions
 
     public long MaxUploadBytes { get; set; } = 4L * 1024 * 1024 * 1024;
 
+    /// <summary>Accounts that may wait for the admin's approval at once; 0 closes sign-ups.</summary>
+    public int MaxPendingAccounts { get; set; } = 10;
+
     /// <summary>Sign-up, sign-in and refresh requests allowed per minute and client address.</summary>
     public int SignInsPerMinute { get; set; } = 10;
 

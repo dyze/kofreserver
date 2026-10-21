@@ -19,20 +19,29 @@ internal sealed class AccountStore(IOptions<KofreOptions> options)
 
     public Account? FindByEmail(string email) => ReadAll().FirstOrDefault(account => SameEmail(account.Email, email));
 
-    /// <summary>Adds an account waiting for approval; null when the email is taken.</summary>
-    public Account? Add(string email, string passwordHash, DateTimeOffset now)
+    /// <summary>
+    /// Adds an account waiting for approval, unless <see cref="KofreOptions.MaxPendingAccounts"/>
+    /// wait already or the email is taken. Counted and added at once, so sign-ups at the same
+    /// moment cannot pass the limit together.
+    /// </summary>
+    public SignUp Add(string email, string passwordHash, DateTimeOffset now)
     {
         lock (_lock)
         {
             var accounts = ReadAll();
+            if (accounts.Count(account => account.IsPending) >= options.Value.MaxPendingAccounts)
+            {
+                return new SignUp(null, SignUpRefusal.TooManyPending);
+            }
+
             if (accounts.Any(account => SameEmail(account.Email, email)))
             {
-                return null;
+                return new SignUp(null, SignUpRefusal.EmailTaken);
             }
 
             var added = new Account(Guid.NewGuid(), email, passwordHash, now);
             JsonFile.Write(FilePath, accounts.Append(added).ToList());
-            return added;
+            return new SignUp(added, null);
         }
     }
 
@@ -55,3 +64,15 @@ internal sealed class AccountStore(IOptions<KofreOptions> options)
 
     private static bool SameEmail(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }
+
+/// <summary>Why a sign-up was refused.</summary>
+public enum SignUpRefusal
+{
+    EmailTaken,
+
+    /// <summary>As many accounts as allowed wait for approval already (none when sign-ups are closed).</summary>
+    TooManyPending,
+}
+
+/// <summary>The account added, or why none was.</summary>
+public sealed record SignUp(Account? Added, SignUpRefusal? Refused);

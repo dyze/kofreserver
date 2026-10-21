@@ -27,6 +27,48 @@ public sealed class AccountTests : IDisposable
     }
 
     [Fact]
+    public async Task AccountsWaitingForApproval_AreLimited_ApprovedAndDisabledOnesNotCounted()
+    {
+        using var server = new KofreServer(new() { ["MaxPendingAccounts"] = "2" });
+        var client = server.CreateClient();
+        async Task<HttpResponseMessage> SignUp(string email) => await client.PostAsJsonAsync("/v1/accounts", new Credentials(email, KofreServer.Password));
+
+        Assert.Equal(HttpStatusCode.Accepted, (await SignUp("a@example.com")).StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, (await SignUp("b@example.com")).StatusCode);
+        await AssertRefused(await SignUp("c@example.com"), HttpStatusCode.Forbidden, "sign-up-closed");
+
+        server.Edit("a@example.com", account => account with { Approved = true });
+        server.Edit("b@example.com", account => account with { Disabled = true });
+
+        Assert.Equal(HttpStatusCode.Accepted, (await SignUp("c@example.com")).StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, (await SignUp("d@example.com")).StatusCode);
+        await AssertRefused(await SignUp("e@example.com"), HttpStatusCode.Forbidden, "sign-up-closed");
+    }
+
+    [Fact]
+    public async Task NoAccountWaiting_ClosesSignUps()
+    {
+        using var server = new KofreServer(new() { ["MaxPendingAccounts"] = "0" });
+
+        var response = await server.CreateClient().PostAsJsonAsync("/v1/accounts", new Credentials(Email, KofreServer.Password));
+
+        await AssertRefused(response, HttpStatusCode.Forbidden, "sign-up-closed");
+        Assert.False(File.Exists(server.AccountsFile));
+    }
+
+    [Fact]
+    public async Task OnlyTheAdminsFields_AreWritten()
+    {
+        await _server.SignedIn(Email);
+
+        var file = File.ReadAllText(_server.AccountsFile);
+
+        Assert.Contains("\"approved\": true", file);
+        Assert.DoesNotContain("isActive", file);
+        Assert.DoesNotContain("isPending", file);
+    }
+
+    [Fact]
     public async Task ThePassword_IsKeptHashed()
     {
         await _server.SignedIn(Email);

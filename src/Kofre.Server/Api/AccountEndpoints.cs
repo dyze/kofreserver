@@ -44,7 +44,14 @@ internal static class AccountEndpoints
             return Errors.BadRequest("weak-password");
         }
 
-        if (accounts.Add(email, PasswordHash.Create(credentials.Password, options.Value.PasswordIterations), clock.GetUtcNow()) is not { } account)
+        var signUp = accounts.Add(email, PasswordHash.Create(credentials.Password, options.Value.PasswordIterations), clock.GetUtcNow());
+        if (signUp.Refused == SignUpRefusal.TooManyPending)
+        {
+            log.LogWarning("Sign-up refused: {Limit} accounts wait for approval already (MaxPendingAccounts)", options.Value.MaxPendingAccounts);
+            return Errors.Forbidden("sign-up-closed");
+        }
+
+        if (signUp.Added is not { } account)
         {
             return Errors.Conflict("email-taken");
         }
