@@ -6,7 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1] - 2026-10-21
+
 ### Added
 - **Accounts**: sign up, approved by the admin in `accounts.json`, at most 10 waiting at once (`MaxPendingAccounts`); sign in with an access token (15 minutes) and a refresh token (30 days, used once); password change, ending the other sessions; sign-ins limited per minute and address.
 - **Stores**: create and list, owner only for now; files uploaded once, never replaced; a feed of the files added; statistics.
 - **Trash**: deleting a store (its owner's password asked again) moves it to the trash. It can be restored from there until it is purged, after 30 days by default (`TrashDays`).
+
+[Unreleased]: https://github.com/dyze/kofreserver/compare/0.1...HEAD
+[0.1]: https://github.com/dyze/kofreserver/releases/tag/0.1
