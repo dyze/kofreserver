@@ -17,7 +17,7 @@ of its clients. What each version changed: [CHANGELOG.md](CHANGELOG.md).
 build.cmd
 ```
 
-Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage. Needs the .NET 10 SDK.
+Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage. Needs the .NET 10 SDK. A server started from `artifacts\` is stopped first, as it locks its files.
 
 ## Run
 
@@ -26,10 +26,27 @@ dotnet publish src/Kofre.Server -c Release -r linux-x64 --self-contained -o publ
 ```
 
 Copy `publish/kofre` to `/opt/kofre`, then use the samples in [`samples`](samples):
-`kofre.service` (systemd) and `Caddyfile` (HTTPS). Put the signing key in `/etc/kofre/secrets.env`:
+`kofre.service` (systemd) and `Caddyfile` (HTTPS), with the signing key below.
+
+### Signing key
+32 random bytes in base64, made once per server. Whoever has it can sign in as any account: keep it out of `appsettings.json` and of the repo. Changing it ends every access token at once; devices renew theirs with their refresh token, without signing in again.
+
+On the server (Linux), into the file `kofre.service` reads:
 
 ```
-Kofre__SigningKey=<openssl rand -base64 32>
+sudo mkdir -p /etc/kofre
+echo "Kofre__SigningKey=$(openssl rand -base64 32)" | sudo tee /etc/kofre/secrets.env > /dev/null
+sudo chown root:kofre /etc/kofre/secrets.env
+sudo chmod 640 /etc/kofre/secrets.env
+```
+
+To try the server on Windows (PowerShell 5.1 or 7), for this shell only:
+
+```
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$env:Kofre__SigningKey = [Convert]::ToBase64String($bytes)
+dotnet run --project src/Kofre.Server
 ```
 
 ## Configuration
@@ -41,6 +58,7 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `DataFolder` | `data` | Where accounts, tokens and stores are kept |
 | `TrashDays` | 30 | Days a deleted store stays in the trash before it is purged |
 | `MaxUploadBytes` | 4 GB | Largest file accepted |
+| `MaxPendingAccounts` | 10 | Accounts waiting for approval at once: more sign-ups are refused (`sign-up-closed`) until the admin approves or disables some. 0 closes sign-ups |
 | `SignInsPerMinute` | 10 | Sign-ups, sign-ins and refreshes per minute and client address |
 | `PasswordIterations` | 600 000 | PBKDF2-SHA256 iterations of new password hashes |
 | `AccessTokenLifetime`, `RefreshTokenLifetime` | 15 min, 30 days | |
@@ -51,7 +69,7 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 | To | Edit |
 | --- | --- |
 | Approve an account | `accounts.json`: `"approved": true` |
-| Disable an account (at once, tokens included) | `accounts.json`: `"disabled": true` |
+| Disable an account (at once, tokens included), or reject one waiting | `accounts.json`: `"disabled": true` |
 | Restore a store from the trash | `stores/<id>/store.json`: remove `"deleted"` |
 
 ```
@@ -73,7 +91,7 @@ JSON; errors are `{ "error": "<code>" }`. Every call but sign-up, sign-in and re
 
 | Method and path | Does | Errors |
 | --- | --- | --- |
-| `POST /accounts` `{email, password}` | Sign up: `202`, waits for approval | `invalid-email`, `weak-password` (under 10 characters), `email-taken` |
+| `POST /accounts` `{email, password}` | Sign up: `202`, waits for approval | `invalid-email`, `weak-password` (under 10 characters), `email-taken`, `sign-up-closed` (403) |
 | `POST /sessions` `{email, password}` | Sign in: `{accessToken, accessExpires, refreshToken}` | `wrong-credentials` (401), `account-not-approved`, `account-disabled` (403) |
 | `POST /sessions/refresh` `{refreshToken}` | A new session; the refresh token is used once | `session-ended` (401), `account-inactive` (403) |
 | `PUT /accounts/me/password` `{password}` + `X-Password` | Changes the password, ends the other sessions | `wrong-password`, `weak-password` |
