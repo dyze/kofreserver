@@ -3,6 +3,9 @@ setlocal
 cd /d "%~dp0"
 set COVERAGE_DIR=artifacts\coverage
 
+rem A server started from artifacts\ locks its files: stop it. Copies run from elsewhere are left alone.
+powershell -NoProfile -Command "Get-Process Kofre.Server -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '%~dp0artifacts\*' } | ForEach-Object { Write-Host \"Stopping Kofre.Server ($($_.Id)) built here\"; $_ | Stop-Process -Force; $_.WaitForExit(5000) | Out-Null }"
+
 if exist "%COVERAGE_DIR%" rmdir /s /q "%COVERAGE_DIR%"
 dotnet restore || exit /b 1
 dotnet tool restore || exit /b 1
