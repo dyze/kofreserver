@@ -1,0 +1,26 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/*
+!artifacts/.gitkeep
+
+# IDE / user files
+.vs/
+.idea/
+*.user
+*.suo
+*.rsuser
+
+# Test results
+TestResults/
+*.trx
+
+# A server's data, when run from the repo
+src/Kofre.Server/data/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Obsidian
+/.obsidian/**

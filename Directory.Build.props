@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Deterministic>true</Deterministic>
+    <!-- Maps the local repo path to /_/ in DLLs, PDBs and their Source Link data. -->
+    <DeterministicSourcePaths>true</DeterministicSourcePaths>
+    <!-- Debug info inside each DLL: logged stack traces keep their line numbers. -->
+    <DebugType>embedded</DebugType>
+    <!-- Single source of truth for the version. Stamped into every assembly. -->
+    <Version>0.1</Version>
+    <Company>dlabs</Company>
+    <!-- All build output goes to the artifacts/ folder. -->
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+  </PropertyGroup>
+</Project>

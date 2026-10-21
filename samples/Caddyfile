@@ -1,0 +1,7 @@
+# Caddy in front of a Kofre server: HTTPS with an automatic certificate, then the server on localhost.
+kofre.example.org {
+	request_body {
+		max_size 4GB
+	}
+	reverse_proxy 127.0.0.1:5080
+}

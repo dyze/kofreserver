@@ -1,0 +1,23 @@
+# systemd unit for a Kofre server published to /opt/kofre (see README.md).
+# Install: copy to /etc/systemd/system/, then `systemctl enable --now kofre`.
+[Unit]
+Description=Kofre server
+After=network.target
+
+[Service]
+Type=exec
+User=kofre
+WorkingDirectory=/opt/kofre
+ExecStart=/opt/kofre/Kofre.Server
+# Only nginx or Caddy on this machine talk to it; they add HTTPS.
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
+Environment=Kofre__DataFolder=/var/lib/kofre
+# The signing key stays out of the unit: in this file, readable by root and kofre only.
+EnvironmentFile=/etc/kofre/secrets.env
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kofre
+
+[Install]
+WantedBy=multi-user.target
