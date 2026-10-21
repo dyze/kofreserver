@@ -8,7 +8,7 @@
     <!-- Debug info inside each DLL: logged stack traces keep their line numbers. -->
     <DebugType>embedded</DebugType>
     <!-- Single source of truth for the version. Stamped into every assembly. -->
-    <Version>0.1</Version>
+    <Version>0.2</Version>
     <Company>dlabs</Company>
     <!-- All build output goes to the artifacts/ folder. -->
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
