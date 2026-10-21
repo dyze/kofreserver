@@ -3,6 +3,7 @@
 Rules for working on **kofreserver** together. Read first:
 - `README.md`: principles, build, run, configuration, admin, API
 - `CHANGELOG.md`: what each version changed
+- `ROADMAP.md`: planned versions and ideas
 
 ## Project in one line
 Kofre: a generic, blind, write-once store of files with accounts and members, behind a REST API, for apps that encrypt their own data.
@@ -38,7 +39,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - **Ask before** adding a dependency, changing the architecture, a breaking API change, or a large refactor.
 - **Tests.** Every change comes with xUnit tests, through the API on the in-memory server where possible.
 - **Build honesty.** Claude builds and runs the tests itself (`build.cmd`) and reports the real result, errors and coverage included. Never claim the code builds without having run it.
-- **Docs.** One home per fact: behavior, configuration, admin and API → `README.md`; changes → `CHANGELOG.md`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (`[Unreleased]`, then `[<version>] - <date>` at release). Prefer tables to long descriptions. Update them when behavior changes.
+- **Docs.** One home per fact: behavior, configuration, admin and API → `README.md`; planned features → `ROADMAP.md`; changes → `CHANGELOG.md`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (`[Unreleased]`, then `[<version>] - <date>` at release). Prefer tables to long descriptions. Update them when behavior changes.
 - **Don't touch** `LICENSE`.
 
 ## Coding rules
