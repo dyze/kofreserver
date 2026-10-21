@@ -29,7 +29,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - Bump it only when the owner asks.
 
 ## Repo layout
-`src/`, `tests/`, `samples/`, `.config/` (dotnet tools), `artifacts/` (ignored). Do not add top-level folders without asking.
+`src/`, `tests/`, `samples/`, `build/` (release scripts: `installer.cmd`), `.config/` (dotnet tools), `artifacts/` (ignored). Do not add top-level folders without asking.
 
 ## How we work
 - **Concise answers.** Short explanations, diagrams over long text.

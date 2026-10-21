@@ -22,10 +22,19 @@ Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage
 ## Run
 
 ```
-dotnet publish src/Kofre.Server -c Release -r linux-x64 --self-contained -o publish/kofre
+build\installer.cmd
 ```
 
-Copy `publish/kofre` to `/opt/kofre`, then use the samples in [`samples`](samples):
+Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server (self-contained: no .NET runtime needed on the machine), the samples and these docs. On the server:
+
+```
+sudo unzip kofre-server-<version>-linux-x64.zip -d /opt
+sudo chmod +x /opt/kofre/Kofre.Server
+sudo useradd --system --no-create-home kofre
+sudo mkdir -p /var/lib/kofre && sudo chown kofre /var/lib/kofre
+```
+
+The zip keeps no Unix permissions: `chmod +x` makes the server runnable. Then use the samples in [`samples`](samples):
 `kofre.service` (systemd) and `Caddyfile` (HTTPS), with the signing key below.
 
 ### Signing key
