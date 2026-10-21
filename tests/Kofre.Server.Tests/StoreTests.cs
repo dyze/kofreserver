@@ -18,7 +18,7 @@ public sealed class StoreTests : IDisposable
         var file = Path.Combine(_folder, Store.FilesFolder, "a");
         File.WriteAllText(file, "abc");
 
-        var result = await _store.AddAsync("a", Content("other"), 100, CancellationToken.None);
+        var result = await _store.AddAsync("a", Content("other"), 100, fence: null, CancellationToken.None);
 
         Assert.Equal(AddResult.Exists, result);
         Assert.Equal([new FeedEntry(1, "a", 3)], _store.FeedSince(0, 10).Entries);
@@ -28,11 +28,11 @@ public sealed class StoreTests : IDisposable
     [Fact]
     public async Task AFeedLineCutByACrash_IsDropped()
     {
-        await _store.AddAsync("a", Content("a"), 100, CancellationToken.None);
+        await _store.AddAsync("a", Content("a"), 100, fence: null, CancellationToken.None);
         File.AppendAllText(Path.Combine(_folder, Store.FeedFile), "{\"seq\":2,\"pa");
 
         var reopened = new Store(_store.Id, _folder);
-        await reopened.AddAsync("b", Content("b"), 100, CancellationToken.None);
+        await reopened.AddAsync("b", Content("b"), 100, fence: null, CancellationToken.None);
 
         Assert.Equal([new FeedEntry(1, "a", 1), new FeedEntry(2, "b", 1)], new Store(_store.Id, _folder).FeedSince(0, 10).Entries);
     }

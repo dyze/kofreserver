@@ -13,6 +13,9 @@ public enum AddResult
     Exists,
 
     TooLarge,
+
+    /// <summary>The store's fence is higher than the upload's: it was raised meanwhile.</summary>
+    Fenced,
 }
 
 /// <summary>
@@ -65,11 +68,47 @@ internal sealed class Store
 
     public Role? RoleOf(Guid account) => Info.Members.TryGetValue(account, out var role) ? role : null;
 
-    public void SetDeleted(DateTimeOffset? when)
+    public void SetDeleted(DateTimeOffset? when) => Change(info => info with { Deleted = when });
+
+    /// <summary>Gives <paramref name="account"/> a role, or removes it (null).</summary>
+    public void SetMember(Guid account, Role? role) => Change(info =>
+    {
+        var members = new Dictionary<Guid, Role>(info.Members);
+        if (role is { } given)
+        {
+            members[account] = given;
+        }
+        else
+        {
+            members.Remove(account);
+        }
+
+        return info with { Members = members };
+    });
+
+    /// <summary>Turns the fence on or raises it to <paramref name="fence"/>, or turns it off (null). False when it would lower it.</summary>
+    public bool SetFence(long? fence)
     {
         lock (_lock)
         {
-            JsonFile.Write(InfoPath, Info with { Deleted = when });
+            if (fence < Info.Fence)
+            {
+                return false;
+            }
+
+            Change(info => info with { Fence = fence });
+            return true;
+        }
+    }
+
+    /// <summary>Whether an upload naming <paramref name="fence"/> (null: none) passes the store's fence.</summary>
+    public bool Admits(long? fence) => Info.Fence is not { } current || fence >= current;
+
+    private void Change(Func<StoreInfo, StoreInfo> change)
+    {
+        lock (_lock)
+        {
+            JsonFile.Write(InfoPath, change(Info));
         }
     }
 
@@ -103,9 +142,9 @@ internal sealed class Store
     /// <summary>
     /// Adds a file: streamed to <c>incoming/</c> first, then moved to its path and added to the
     /// feed. A file found at its path but missing from the feed (a crash between both) is added to
-    /// the feed then, as the move had completed.
+    /// the feed then, as the move had completed. The fence is checked again as the file is added.
     /// </summary>
-    public async Task<AddResult> AddAsync(string path, Stream content, long maxBytes, CancellationToken cancel)
+    public async Task<AddResult> AddAsync(string path, Stream content, long maxBytes, long? fence, CancellationToken cancel)
     {
         if (FileOf(path) is not null)
         {
@@ -121,7 +160,7 @@ internal sealed class Store
                 return AddResult.TooLarge;
             }
 
-            return Commit(path, incoming);
+            return Commit(path, incoming, fence);
         }
         finally
         {
@@ -129,10 +168,15 @@ internal sealed class Store
         }
     }
 
-    private AddResult Commit(string path, string incoming)
+    private AddResult Commit(string path, string incoming, long? fence)
     {
         lock (_lock)
         {
+            if (!Admits(fence))
+            {
+                return AddResult.Fenced;
+            }
+
             Feed();
             if (_byPath.ContainsKey(path))
             {

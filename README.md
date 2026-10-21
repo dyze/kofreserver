@@ -69,6 +69,8 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `MaxUploadBytes` | 4 GB | Largest file accepted |
 | `MaxPendingAccounts` | 10 | Accounts waiting for approval at once: more sign-ups are refused (`sign-up-closed`) until the admin approves or disables some. 0 closes sign-ups |
 | `SignInsPerMinute` | 10 | Sign-ups, sign-ins and refreshes per minute and client address |
+| `LookupsPerMinute` | 10 | Accounts looked up by email per minute and account |
+| `MaxAccountDataBytes` | 64 KB | Largest public or private part of an account's data |
 | `PasswordIterations` | 600 000 | PBKDF2-SHA256 iterations of new password hashes |
 | `AccessTokenLifetime`, `RefreshTokenLifetime` | 15 min, 30 days | |
 
@@ -85,8 +87,9 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 <DataFolder>/
   accounts.json           [{ id, email, passwordHash, created, approved, disabled }]
   tokens.json             refresh tokens, hashed (SHA-256), with their account and expiry
+  account-data/<id>.json  { version, public, private, updated }: an account's data, opaque
   stores/<id>/
-    store.json            { members: { <account>: owner | writer | reader }, created, deleted? }
+    store.json            { members: { <account>: owner | writer | reader }, created, deleted?, fence? }
     feed.jsonl            one line per file added: { seq, path, size }
     files/…               the clients' files, by path
     incoming/             uploads being received
@@ -96,24 +99,37 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 - Logs: the console (journald under systemd). Never a password, a token or a file's content.
 
 ## API (`/v1`)
-JSON; errors are `{ "error": "<code>" }`. Every call but sign-up, sign-in and refresh needs `Authorization: Bearer <access token>`; access to a store is checked at every request against its members.
+JSON; errors are `{ "error": "<code>" }`. Every call but the version, sign-up, sign-in and refresh needs `Authorization: Bearer <access token>`; access to a store is checked at every request against its members.
 
 | Method and path | Does | Errors |
 | --- | --- | --- |
+| `GET /version` | The server's version: `{version}`, without signing in | |
 | `POST /accounts` `{email, password}` | Sign up: `202`, waits for approval | `invalid-email`, `weak-password` (under 10 characters), `email-taken`, `sign-up-closed` (403) |
 | `POST /sessions` `{email, password}` | Sign in: `{accessToken, accessExpires, refreshToken}` | `wrong-credentials` (401), `account-not-approved`, `account-disabled` (403) |
 | `POST /sessions/refresh` `{refreshToken}` | A new session; the refresh token is used once | `session-ended` (401), `account-inactive` (403) |
 | `PUT /accounts/me/password` `{password}` + `X-Password` | Changes the password, ends the other sessions | `wrong-password`, `weak-password` |
-| `GET /stores` | The caller's stores: `[{id, role, files, bytes}]` | |
+| `GET /accounts/me/data` | The caller's data, opaque: `{version, public, private, updated}`, the parts in base64; version 0 when none | |
+| `PUT /accounts/me/data` `{version, public, private}` | Replaces it when `version` is still the current one: `{version}`, the next one | `data-changed` (409, with the current `version`), `invalid-data`, `too-large` (413) |
+| `GET /accounts?email=` | An active account, by its exact email (any case): `{id, public}`. Limited per account (`LookupsPerMinute`) | `no-account` (404), `429` |
+| `GET /accounts/{id}/public` | An active account's public part: `{public}` | `no-account` (404) |
+| `GET /stores` | The stores the caller is a member of: `[{id, role, files, bytes, fence}]` | |
 | `POST /stores` | Creates a store, the caller owner: `201 {id}` | |
 | `GET /stores/{id}/stats` | `{files, bytes}` | |
 | `GET /stores/{id}/feed?since={seq}` | Files added after `seq`: `{entries: [{seq, path, size}], more}`, 1000 at most | |
 | `GET /stores/{id}/files/{path}` | Downloads a file | `no-file` |
-| `PUT /stores/{id}/files/{path}` | Uploads a file (writer): `201` | `file-exists` (409), `invalid-path`, `too-large` (413) |
+| `PUT /stores/{id}/files/{path}` | Uploads a file (writer): `201`. Once the store's fence is on, the `Store-Fence` header must name a number at least as high | `file-exists` (409), `fence` (409, `{error, fence}`), `invalid-path`, `too-large` (413) |
 | `DELETE /stores/{id}` + `X-Password` | To the trash (owner): `204` | `wrong-password` |
 | `POST /stores/{id}/restore` + `X-Password` | Back from the trash (owner): `204` | `not-deleted` |
+| `GET /stores/{id}/members` | Its members (any member): `[{account, role}]` | |
+| `PUT /stores/{id}/members/{account}` `{role}` | Adds an active account as `reader` or `writer`, or changes its role (owner) | `no-account` (404), `owner-fixed` (409), `invalid-role` |
+| `DELETE /stores/{id}/members/{account}` | Removes a member (owner): refused at its next request | `not-member` (404), `owner-fixed` (409) |
+| `DELETE /stores/{id}/members/me` | Leaves the store | `owner-cannot-leave` (409) |
+| `PUT /stores/{id}/fence` `{value}` | Turns the fence on, or raises it (owner): never lowered | `fence-lower` (409, `{error, fence}`), `invalid-fence` |
+| `DELETE /stores/{id}/fence` | Turns the fence off (owner) | |
 
 Store errors: `no-store` (404), `not-allowed`, `store-deleted` (403), `account-inactive` (403, any call). Too many sign-ins: `429`.
+
+The **fence** is an optional number per store, for clients that must stop writers that are behind: the server only compares it with the `Store-Fence` header, and knows nothing of what it means. Off, the header is ignored.
 
 Paths: segments of letters, digits, `.`, `_` and `-`, separated by `/` (16 at most, 512 characters).
 

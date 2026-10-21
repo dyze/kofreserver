@@ -11,6 +11,7 @@ public sealed record AddedFile(string Path);
 internal static class StoreEndpoints
 {
     public const int MaxFeedPage = 1000;
+    public const string FenceHeader = "Store-Fence";
 
     public static void Map(RouteGroupBuilder api)
     {
@@ -134,20 +135,29 @@ internal static class StoreEndpoints
             bodySize.MaxRequestBodySize = null;
         }
 
-        switch (await store!.AddAsync(path, context.Request.Body, max, context.RequestAborted))
+        // Checked before the upload is received, and again as it is added.
+        var fence = long.TryParse(context.Request.Headers[FenceHeader], out var named) ? named : (long?)null;
+        if (!store!.Admits(fence))
+        {
+            return Errors.Fenced("fence", store.Info.Fence);
+        }
+
+        switch (await store.AddAsync(path, context.Request.Body, max, fence, context.RequestAborted))
         {
             case AddResult.Added:
                 log.LogDebug("Store {Store}: {Path} uploaded", id, path);
                 return Results.Created($"/v1/stores/{id}/files/{path}", new AddedFile(path));
             case AddResult.Exists:
                 return Errors.Conflict("file-exists");
+            case AddResult.Fenced:
+                return Errors.Fenced("fence", store.Info.Fence);
             default:
                 return Errors.TooLarge();
         }
     }
 
     /// <summary>Why the caller may not use <paramref name="store"/> with the <paramref name="needed"/> role; null when they may.</summary>
-    private static IResult? Refuse(HttpContext context, Store? store, Role needed) =>
+    internal static IResult? Refuse(HttpContext context, Store? store, Role needed) =>
         store switch
         {
             null => Errors.NotFound("no-store"),

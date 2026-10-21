@@ -28,6 +28,12 @@ public sealed class KofreOptions
     /// <summary>Sign-up, sign-in and refresh requests allowed per minute and client address.</summary>
     public int SignInsPerMinute { get; set; } = 10;
 
+    /// <summary>Accounts looked up by email per minute and account, so emails cannot be tried in bulk.</summary>
+    public int LookupsPerMinute { get; set; } = 10;
+
+    /// <summary>Largest public or private part of an account's data.</summary>
+    public int MaxAccountDataBytes { get; set; } = 64 * 1024;
+
     public const string SigningKeyRule = $"{Section}:{nameof(SigningKey)} must be at least 32 bytes in base64";
 
     private const int MinSigningKeyBytes = 32;

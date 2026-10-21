@@ -55,6 +55,7 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
         builder.UseSetting("Kofre:SigningKey", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         builder.UseSetting("Kofre:PasswordIterations", "10");
         builder.UseSetting("Kofre:SignInsPerMinute", "1000");
+        builder.UseSetting("Kofre:LookupsPerMinute", "1000");
         foreach (var (key, value) in settings ?? [])
         {
             builder.UseSetting("Kofre:" + key, value);

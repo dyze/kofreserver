@@ -26,6 +26,7 @@ public static class KofreApp
             .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<AccountStore>();
+        services.AddSingleton<AccountDataStore>();
         services.AddSingleton<TokenService>();
         services.AddSingleton<StoreRepository>();
         services.AddHostedService<TrashPurge>();
@@ -58,6 +59,13 @@ public static class KofreApp
                     PermitLimit = context.RequestServices.GetRequiredService<IOptions<KofreOptions>>().Value.SignInsPerMinute,
                     Window = TimeSpan.FromMinutes(1),
                 }));
+            limiter.AddPolicy(AccountDataEndpoints.LookupLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+                AccountDataEndpoints.LookupPartition(context),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = context.RequestServices.GetRequiredService<IOptions<KofreOptions>>().Value.LookupsPerMinute,
+                    Window = TimeSpan.FromMinutes(1),
+                }));
         });
 
         // Behind nginx or Caddy (on this machine): the client's address and scheme come from them.
@@ -70,8 +78,11 @@ public static class KofreApp
         app.UseRateLimiter();
 
         var api = app.MapGroup("/v1");
+        VersionEndpoint.Map(api);
         AccountEndpoints.Map(api);
+        AccountDataEndpoints.Map(api);
         StoreEndpoints.Map(api);
+        MemberEndpoints.Map(api);
         return app;
     }
 }

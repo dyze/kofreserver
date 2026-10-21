@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Version**: `GET /version`, without signing in, so a client can tell the server is too old.
+- **Account data**: opaque, a public part any signed-in account reads and a private part only its account reads. Each write names the version it replaces, so two devices cannot overwrite each other (`MaxAccountDataBytes`).
+- **Find an account** by its exact email, limited per account (`LookupsPerMinute`), and read its public part by id. Only active accounts are found.
+- **Members**: the owner adds active accounts as readers or writers, changes their role or removes them; a member leaves. The owner is never changed nor removed. Every member reads the members.
+- **Fence**: an optional number per store, set by its owner and never lowered. Once on, an upload names one at least as high (`Store-Fence`), checked again as the file is added.
+
 ## [0.1] - 2026-10-21
 
 ### Added

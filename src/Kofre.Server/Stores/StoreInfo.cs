@@ -8,8 +8,11 @@ public enum Role
     Owner,
 }
 
-/// <summary>A store's <c>store.json</c>: its members, and when it was put in the trash (null: it is not).</summary>
-public sealed record StoreInfo(Dictionary<Guid, Role> Members, DateTimeOffset Created, DateTimeOffset? Deleted = null);
+/// <summary>
+/// A store's <c>store.json</c>: its members, when it was put in the trash (null: it is not), and
+/// its fence (null: off): once on, an upload must name a number at least as high.
+/// </summary>
+public sealed record StoreInfo(Dictionary<Guid, Role> Members, DateTimeOffset Created, DateTimeOffset? Deleted = null, long? Fence = null);
 
 /// <summary>A line of a store's feed: the <paramref name="Seq"/>-th file added.</summary>
 public sealed record FeedEntry(long Seq, string Path, long Size);
@@ -21,4 +24,7 @@ public sealed record FeedPage(IReadOnlyList<FeedEntry> Entries, bool More);
 public sealed record StoreStats(int Files, long Bytes);
 
 /// <summary>A store as listed for one of its members.</summary>
-public sealed record StoreSummary(Guid Id, Role Role, int Files, long Bytes);
+public sealed record StoreSummary(Guid Id, Role Role, int Files, long Bytes, long? Fence = null);
+
+/// <summary>A member of a store, and its role.</summary>
+public sealed record Member(Guid Account, Role Role);

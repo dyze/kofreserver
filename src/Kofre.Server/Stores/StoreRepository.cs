@@ -34,7 +34,7 @@ internal sealed class StoreRepository(IOptions<KofreOptions> options, TimeProvid
             .Select(item =>
             {
                 var stats = item.Store.Stats();
-                return new StoreSummary(item.Store.Id, item.Info.Members[account], stats.Files, stats.Bytes);
+                return new StoreSummary(item.Store.Id, item.Info.Members[account], stats.Files, stats.Bytes, item.Info.Fence);
             })
             .ToList();
 
