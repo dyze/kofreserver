@@ -25,7 +25,7 @@ Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage
 build\installer.cmd
 ```
 
-Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server (self-contained: no .NET runtime needed on the machine), the samples and these docs. On the server:
+Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server as one file, `Kofre.Server` (self-contained: no .NET runtime needed on the machine), its `appsettings.json`, the samples and these docs. On the server:
 
 ```
 sudo unzip kofre-server-<version>-linux-x64.zip -d /opt

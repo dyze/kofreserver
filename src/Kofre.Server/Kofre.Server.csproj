@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Kofre.Server</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- No web pages: no static web assets file to publish. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
 
   <ItemGroup>
