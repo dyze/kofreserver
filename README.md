@@ -25,17 +25,59 @@ Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage
 build\installer.cmd
 ```
 
-Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server as one file, `Kofre.Server` (self-contained: no .NET runtime needed on the machine), its `appsettings.json`, the samples and these docs. On the server:
+Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server as one file, `Kofre.Server` (self-contained: no .NET runtime needed on the machine), its `appsettings.json`, the samples and these docs.
 
 ```
-sudo unzip kofre-server-<version>-linux-x64.zip -d /opt
-sudo chmod +x /opt/kofre/Kofre.Server
-sudo useradd --system --no-create-home kofre
-sudo mkdir -p /var/lib/kofre && sudo chown kofre /var/lib/kofre
+Internet ──HTTPS──► Caddy (:80, :443) ──HTTP──► Kofre.Server (127.0.0.1:5080) ──► /var/lib/kofre
 ```
 
-The zip keeps no Unix permissions: `chmod +x` makes the server runnable. Then use the samples in [`samples`](samples):
-`kofre.service` (systemd) and `Caddyfile` (HTTPS), with the signing key below.
+### Install (Ubuntu)
+Needs a DNS name pointing to the server's public address, and ports 80 and 443 open to it (firewall, router): Caddy gets its certificate from Let's Encrypt through them.
+
+1. Copy the zip to the server (`scp`), then:
+   ```
+   sudo apt update && sudo apt install -y unzip openssl caddy
+   sudo unzip kofre-server-<version>-linux-x64.zip -d /opt
+   sudo chmod +x /opt/kofre/Kofre.Server
+   sudo useradd --system --no-create-home kofre
+   sudo mkdir -p /var/lib/kofre && sudo chown kofre /var/lib/kofre
+   ```
+   The zip keeps no Unix permissions: `chmod +x` makes the server runnable.
+2. Make the [signing key](#signing-key).
+3. Start the service, then check it answers `{"version":"<version>"}`:
+   ```
+   sudo cp /opt/kofre/samples/kofre.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now kofre
+   curl http://127.0.0.1:5080/v1/version
+   ```
+4. HTTPS: copy [`samples/Caddyfile`](samples/Caddyfile) to `/etc/caddy/Caddyfile`, **replace `kofre.example.org` with the server's DNS name**, then `sudo systemctl reload caddy`. With `ufw`: `sudo ufw allow 80,443/tcp`. Check `https://<name>/v1/version` from outside. A browser error such as `SSL_ERROR_INTERNAL_ERROR_ALERT` means Caddy has no certificate for that name: wrong name in the Caddyfile, DNS, or port 80 closed (`journalctl -u caddy`).
+5. Sign up from a client, then [approve](#admin) the account in `/var/lib/kofre/accounts.json`.
+
+Logs: `journalctl -u kofre -f`. **Upgrade**: `sudo systemctl stop kofre`, unzip the new version over `/opt/kofre` (`unzip -o`), `chmod +x` again, `sudo systemctl start kofre`. The data in `/var/lib/kofre` is kept.
+
+### Backup and restore
+Everything is in two folders: the data (`/var/lib/kofre`) and the signing key (`/etc/kofre`). Files are only added, never changed, but `accounts.json`, `tokens.json` and `store.json` are: stop the server for a consistent copy (clients that work offline wait for it).
+
+```
+sudo systemctl stop kofre
+sudo tar -czf kofre-backup-$(date +%F).tar.gz -C / var/lib/kofre etc/kofre
+sudo systemctl start kofre
+```
+
+Keep the archive off the server. It holds password hashes and the signing key: store it as safely as the server; the clients' files in it are encrypted by them.
+
+Restore, on a server installed as above with an empty `/var/lib/kofre` (steps 1, 3 and 4; the key comes from the archive):
+
+```
+sudo systemctl stop kofre
+sudo tar -xzf kofre-backup-<date>.tar.gz -C /
+sudo chown -R kofre /var/lib/kofre
+sudo chown root:kofre /etc/kofre/secrets.env && sudo chmod 640 /etc/kofre/secrets.env
+sudo systemctl start kofre
+```
+
+What was uploaded after the backup is not on the server any more. A lost signing key is not lost data: make a new one; devices renew their access with their refresh token.
 
 ### Signing key
 32 random bytes in base64, made once per server. Whoever has it can sign in as any account: keep it out of `appsettings.json` and of the repo. Changing it ends every access token at once; devices renew theirs with their refresh token, without signing in again.
