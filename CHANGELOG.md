@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2] - 2026-10-24
+
 ### Added
 - **Version**: `GET /version`, without signing in, so a client can tell the server is too old.
 - **Account data**: opaque, a public part any signed-in account reads and a private part only its account reads. Each write names the version it replaces, so two devices cannot overwrite each other (`MaxAccountDataBytes`).
@@ -20,5 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Stores**: create and list, owner only for now; files uploaded once, never replaced; a feed of the files added; statistics.
 - **Trash**: deleting a store (its owner's password asked again) moves it to the trash. It can be restored from there until it is purged, after 30 days by default (`TrashDays`).
 
-[Unreleased]: https://github.com/dyze/kofreserver/compare/0.1...HEAD
+[Unreleased]: https://github.com/dyze/kofreserver/compare/0.2...HEAD
+[0.2]: https://github.com/dyze/kofreserver/compare/0.1...0.2
 [0.1]: https://github.com/dyze/kofreserver/releases/tag/0.1
