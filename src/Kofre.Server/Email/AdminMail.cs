@@ -2,8 +2,11 @@ using Microsoft.Extensions.Options;
 
 namespace Kofre.Server.Email;
 
-/// <summary>Emails to the admin, when <see cref="EmailOptions.Enabled"/>. A failed email is logged, never thrown.</summary>
-internal sealed class AdminMail(IOptions<KofreOptions> options, IMailSender sender, ILogger<AdminMail> log)
+/// <summary>
+/// Emails to the admin, when <see cref="EmailOptions.Enabled"/>, within <see cref="EmailOptions.MaxPerHour"/>.
+/// A failed or suppressed email is logged, never thrown.
+/// </summary>
+internal sealed class AdminMail(IOptions<KofreOptions> options, IMailSender sender, MailQuota quota, ILogger<AdminMail> log)
 {
     public bool Enabled => options.Value.Email.Enabled;
 
@@ -12,6 +15,17 @@ internal sealed class AdminMail(IOptions<KofreOptions> options, IMailSender send
         if (!Enabled)
         {
             return;
+        }
+
+        if (quota.TryTake() is not { } suppressed)
+        {
+            log.LogWarning("Email to the admin not sent, {Max} sent in the last hour already (MaxPerHour): {Subject}", options.Value.Email.MaxPerHour, subject);
+            return;
+        }
+
+        if (suppressed > 0)
+        {
+            body += $"{Environment.NewLine}{Environment.NewLine}{suppressed} emails were not sent before this one: more than {options.Value.Email.MaxPerHour} an hour (MaxPerHour). The log has them.";
         }
 
         try

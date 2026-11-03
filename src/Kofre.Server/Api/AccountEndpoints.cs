@@ -62,7 +62,7 @@ internal static class AccountEndpoints
         return Results.Accepted(value: new SignedUp(account.Id));
     }
 
-    private static IResult SignIn(Credentials credentials, AccountStore accounts, TokenService tokens, IOptions<KofreOptions> options, ILogger<Account> log)
+    private static IResult SignIn(Credentials credentials, AccountStore accounts, TokenService tokens, IOptions<KofreOptions> options, RefusedSignIns refused, ILogger<Account> log)
     {
         var account = accounts.FindByEmail(credentials.Email?.Trim() ?? "");
         // An unknown email costs the same time as a wrong password: no hint that it exists.
@@ -71,6 +71,7 @@ internal static class AccountEndpoints
         if (!PasswordHash.Verify(credentials.Password ?? "", hash) || account is null)
         {
             log.LogWarning("Sign-in refused: unknown email or wrong password");
+            refused.Add();
             return Errors.Unauthorized("wrong-credentials");
         }
 

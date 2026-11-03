@@ -14,8 +14,7 @@ Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
 Environment=Kofre__DataFolder=/var/lib/kofre
 Environment=Kofre__Logs__Folder=/var/log/kofre
 Environment=Kofre__Backup__Folder=/var/backups/kofre
-Environment=Kofre__Backup__ConfigFiles__0=/opt/kofre/appsettings.json
-Environment=Kofre__Backup__ConfigFiles__1=/etc/kofre/secrets.env
+Environment=Kofre__Backup__ConfigFiles__0=/etc/kofre/secrets.env
 # The signing key and the SMTP password stay out of the unit: in this file, readable by root and kofre only.
 EnvironmentFile=/etc/kofre/secrets.env
 Restart=on-failure

@@ -11,10 +11,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Backup**: every day at a set time, a zip of the data folder and the configuration files, made in maintenance once the running writes end. The latest of each of the last 7 days, 4 weeks and 12 months is kept (`Backup` settings).
 - **Emails to the admin** through SMTP (MailKit): server started (after an unclean stop or not) and stopping, account waiting for approval, backup failed, and a daily summary (`Email` settings, off by default).
 - **Log files**: `kofre.log`, rotated over 5 files of 10 MB; the latest 1000 entries kept in memory for the summary (`Logs` settings).
+- **More emails to the admin**: backup done, with its size (`BackupDone`); disk space low and back, for the data and backups disks (`MinFreeDiskPercent`, 20 %); many sign-ins refused (`MaxRefusedSignInsPerHour`, 50). The daily summary tells the disks' free space and the size of the data and backups.
+- **No email flood**: at most 10 emails an hour (`MaxPerHour`), the others logged and counted in the next one; the count survives a restart.
+- The email settings are checked at start: on, `Host`, `From` and `To` are required.
 
 ### Changed
 - Logs go to the console and the log files only: no more Windows event log or debugger output.
 - `build.cmd` and `build.sh` moved to `build/`.
+- The zip ships no `appsettings.json`: the defaults are in the code, so an upgrade never overwrites the admin's settings. `kofre.service` backs up `secrets.env` only.
+- The data protection warnings logged at each start (keys in memory, unused) are no longer logged.
 
 ## [0.2] - 2026-10-24
 

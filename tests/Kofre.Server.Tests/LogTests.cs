@@ -26,6 +26,21 @@ public sealed class LogTests
     }
 
     [Fact]
+    public void AspNetCore_LogsItsWarnings_ItsDataProtectionItsErrors()
+    {
+        using var server = new KofreServer();
+        var loggers = server.Service<ILoggerFactory>();
+
+        loggers.CreateLogger("Microsoft.AspNetCore.Routing").LogInformation("Routing information");
+        loggers.CreateLogger("Microsoft.AspNetCore.Routing").LogWarning("Routing warning");
+        loggers.CreateLogger("Microsoft.AspNetCore.DataProtection.KeyManagement").LogWarning("Keys in memory");
+        loggers.CreateLogger("Microsoft.AspNetCore.DataProtection.KeyManagement").LogError("Keys error");
+
+        Assert.Equal(["Routing warning", "Keys error"], server.Service<MemoryLog>().Since(DateTimeOffset.MinValue, LogLevel.Trace)
+            .Where(entry => entry.Category.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal)).Select(entry => entry.Message));
+    }
+
+    [Fact]
     public void AFullFile_IsRotated_TheOldestDeleted()
     {
         using var server = new KofreServer(new() { ["Logs:MaxFileBytes"] = "200", ["Logs:MaxFiles"] = "3" });

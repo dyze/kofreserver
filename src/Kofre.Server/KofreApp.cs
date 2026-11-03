@@ -24,11 +24,15 @@ public static class KofreApp
         var builder = WebApplication.CreateBuilder(args);
         var services = builder.Services;
         // The console only (journald under systemd), besides the files and memory below: no Windows event log, no debugger output.
-        builder.Logging.ClearProviders().AddConsole();
+        builder.Logging.ClearProviders().AddConsole()
+            .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+            // No cookies nor forms: its keys, kept in memory as the service has no home folder, are never used.
+            .AddFilter("Microsoft.AspNetCore.DataProtection", LogLevel.Error);
 
         services.AddOptions<KofreOptions>()
             .Bind(builder.Configuration.GetSection(KofreOptions.Section))
             .Validate(options => options.HasValidSigningKey, KofreOptions.SigningKeyRule)
+            .Validate(options => options.Email.IsValid, EmailOptions.Rule)
             .ValidateOnStart();
         services.AddOptions<LogOptions>().Bind(builder.Configuration.GetSection(LogOptions.Section));
         services.AddSingleton(TimeProvider.System);
@@ -41,10 +45,15 @@ public static class KofreApp
         services.AddSingleton<StoreRepository>();
         services.AddSingleton<MaintenanceMode>();
         services.AddSingleton<IMailSender, MailKitSender>();
+        services.AddSingleton<MailQuota>();
         services.AddSingleton<AdminMail>();
+        services.AddSingleton<RefusedSignIns>();
+        services.AddSingleton<IDiskSpace, DriveSpace>();
         // Started first, stopped last: its emails frame the others' work.
         services.AddHostedService<ServiceLifecycle>();
         services.AddHostedService<TrashPurge>();
+        services.AddSingleton<DiskWatch>();
+        services.AddHostedService(provider => provider.GetRequiredService<DiskWatch>());
         services.AddSingleton<Backup>();
         services.AddHostedService(provider => provider.GetRequiredService<Backup>());
         services.AddSingleton<DailySummary>();

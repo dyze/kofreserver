@@ -3,7 +3,7 @@ using Kofre.Server.Email;
 
 namespace Kofre.Server;
 
-/// <summary>The server's settings: the <c>Kofre</c> section of its configuration (appsettings.json, environment).</summary>
+/// <summary>The server's settings: the <c>Kofre</c> section of its configuration (environment variables, or an appsettings.json the admin writes).</summary>
 public sealed class KofreOptions
 {
     public const string Section = "Kofre";

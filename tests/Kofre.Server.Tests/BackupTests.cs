@@ -3,6 +3,7 @@ using Kofre.Server.Backups;
 using Kofre.Server.Email;
 using Kofre.Server.Logging;
 using Kofre.Server.Maintenance;
+using Kofre.Server.Storage;
 using Microsoft.Extensions.Logging;
 using static Kofre.Server.Tests.StoreApiTests;
 
@@ -32,8 +33,34 @@ public sealed class BackupTests : IDisposable
         Assert.Contains("config/appsettings.json", entries);
         Assert.Contains(entries, entry => entry.StartsWith("data/stores/", StringComparison.Ordinal) && entry.EndsWith("/a/b", StringComparison.Ordinal));
         Assert.DoesNotContain("data/" + ServiceLifecycle.MarkerFile, entries);
-        Assert.Equal(new BackupResult(_server.Clock.Now, name, null), backup.Last);
+        var size = new FileInfo(Path.Combine(_server.BackupsFolder, name)).Length;
+        Assert.Equal(new BackupResult(_server.Clock.Now, name, null, size), backup.Last);
         Assert.False(_server.Service<MaintenanceMode>().IsOn);
+        var done = (await _server.Mail.Next("backup done")).Body;
+        Assert.Contains($"{name} is made: {ByteSize.Format(size)}", done, StringComparison.Ordinal);
+        Assert.Contains($"1 archives, {ByteSize.Format(size)}", done, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ABackupDone_IsNotEmailed_WhenTurnedOff()
+    {
+        using var server = new KofreServer(new() { ["Email:Enabled"] = "true", ["Email:BackupDone"] = "false" });
+
+        await server.Service<Backup>().RunAsync(CancellationToken.None);
+
+        Assert.NotNull(server.Service<Backup>().Last!.Archive);
+        Assert.Equal(0, server.Mail.Count("backup"));
+    }
+
+    [Fact]
+    public async Task TheDisks_AreCheckedBeforeABackup()
+    {
+        _ = _server.Services;
+        _server.Disk.Usage = new(10, 100);
+
+        await _server.Service<Backup>().RunAsync(CancellationToken.None);
+
+        Assert.NotNull(await _server.Mail.Next("disk space low"));
     }
 
     [Fact]

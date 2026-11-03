@@ -3,22 +3,25 @@ using Kofre.Server.Email;
 using Kofre.Server.Logging;
 using Kofre.Server.Maintenance;
 using Kofre.Server.Scheduling;
+using Kofre.Server.Storage;
 using Microsoft.Extensions.Options;
 
 namespace Kofre.Server.Backups;
 
-/// <summary>The last backup: its archive, or why it failed.</summary>
-internal sealed record BackupResult(DateTimeOffset Time, string? Archive, string? Failure);
+/// <summary>The last backup: its archive and size, or why it failed.</summary>
+internal sealed record BackupResult(DateTimeOffset Time, string? Archive, string? Failure, long Size = 0);
 
 /// <summary>
 /// The daily backup. Maintenance mode is on while the archive is written, so no file changes in
-/// it; old archives are then deleted (<see cref="BackupRetention"/>). A failure is emailed to the admin.
+/// it; old archives are then deleted (<see cref="BackupRetention"/>). The result is emailed to
+/// the admin: a failure always, a success when <see cref="EmailOptions.BackupDone"/>.
 /// </summary>
 internal sealed class Backup(
     IOptions<KofreOptions> options,
     IOptions<LogOptions> logOptions,
     MaintenanceMode maintenance,
     AdminMail mail,
+    DiskWatch disks,
     TimeProvider clock,
     ILogger<Backup> log) : DailyService(clock)
 {
@@ -34,6 +37,7 @@ internal sealed class Backup(
     {
         var settings = Settings;
         var name = BackupArchive.NameOf(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Clock.GetUtcNow(), Clock.LocalTimeZone).DateTime));
+        disks.Check();
         if (!await maintenance.TurnOnAsync(settings.WritesTimeout, Clock, cancellation))
         {
             await FailAsync($"writes still running after {settings.WritesTimeout}", cancellation);
@@ -60,8 +64,23 @@ internal sealed class Backup(
             log.LogInformation("Maintenance off");
         }
 
-        Last = new BackupResult(Clock.GetUtcNow(), name, null);
-        log.LogInformation("Backup {Archive} made in {Seconds:0.0} s; {Deleted} old archives deleted", name, watch.Elapsed.TotalSeconds, deleted);
+        var size = new FileInfo(Path.Combine(settings.Folder, name)).Length;
+        Last = new BackupResult(Clock.GetUtcNow(), name, null, size);
+        log.LogInformation("Backup {Archive} made in {Seconds:0.0} s, {Size}; {Deleted} old archives deleted", name, watch.Elapsed.TotalSeconds, ByteSize.Format(size), deleted);
+        if (options.Value.Email.BackupDone)
+        {
+            await mail.SendAsync("backup done", $"The backup {name} is made: {ByteSize.Format(size)}, in {watch.Elapsed.TotalSeconds:0.0} s.{Environment.NewLine}"
+                + $"{deleted} old archives deleted; {Archives(settings.Folder)} in {settings.Folder}.", cancellation);
+        }
+    }
+
+    /// <summary>"23 archives, 4.5 GB": the archives in the backups folder.</summary>
+    public static string Archives(string folder)
+    {
+        var archives = Directory.Exists(folder)
+            ? Directory.EnumerateFiles(folder).Where(file => BackupArchive.DayOf(Path.GetFileName(file)) is not null).Select(file => new FileInfo(file).Length).ToList()
+            : [];
+        return $"{archives.Count} archives, {ByteSize.Format(archives.Sum())}";
     }
 
     private IEnumerable<string> ConfigFiles(BackupOptions settings)

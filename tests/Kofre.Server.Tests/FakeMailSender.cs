@@ -11,10 +11,18 @@ internal sealed class FakeMailSender : IMailSender
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
 
     private readonly Channel<SentMail> _sent = Channel.CreateUnbounded<SentMail>();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<SentMail> _all = new();
 
     public Exception? Failure { get; set; }
 
     public int Waiting => _sent.Reader.Count;
+
+    /// <summary>The subjects of all the emails sent, read by <see cref="Next"/> or not.</summary>
+    public IReadOnlyList<string> Subjects => Sent.Select(mail => mail.Subject).ToList();
+
+    public IReadOnlyList<SentMail> Sent => [.. _all];
+
+    public int Count(string subject) => Subjects.Count(sent => sent.Contains(subject, StringComparison.Ordinal));
 
     public Task SendAsync(string subject, string body, CancellationToken cancellation)
     {
@@ -23,6 +31,7 @@ internal sealed class FakeMailSender : IMailSender
             throw Failure;
         }
 
+        _all.Enqueue(new SentMail(subject, body));
         _sent.Writer.TryWrite(new SentMail(subject, body));
         return Task.CompletedTask;
     }

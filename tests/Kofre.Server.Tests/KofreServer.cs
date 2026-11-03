@@ -25,6 +25,8 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
 
     public FakeMailSender Mail { get; } = new();
 
+    public FakeDiskSpace Disk { get; } = new();
+
     public ManualClock Clock { get; } = new();
 
     public string AccountsFile => Path.Combine(DataFolder, AccountStore.FileName);
@@ -69,6 +71,9 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
         builder.UseSetting("Kofre:Logs:Folder", LogsFolder);
         builder.UseSetting("Kofre:Backup:Folder", BackupsFolder);
         builder.UseSetting("Kofre:Backup:Enabled", "false");
+        builder.UseSetting("Kofre:Email:Host", "smtp.example.org");
+        builder.UseSetting("Kofre:Email:From", "kofre@example.org");
+        builder.UseSetting("Kofre:Email:To", "admin@example.org");
         builder.UseSetting("Kofre:Backup:ConfigFiles:0", Path.Combine(Root, "appsettings.json"));
         foreach (var (key, value) in settings ?? [])
         {
@@ -79,6 +84,7 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
         {
             services.AddSingleton<TimeProvider>(Clock);
             services.AddSingleton<IMailSender>(Mail);
+            services.AddSingleton<IDiskSpace>(Disk);
         });
     }
 

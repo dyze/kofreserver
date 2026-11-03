@@ -18,12 +18,13 @@ if not defined VERSION (
 echo Building the Kofre server %VERSION% zip...
 
 rem Self-contained: the server needs no .NET runtime on the machine. The zip holds a kofre folder:
-rem the server, its appsettings.json, the samples (systemd unit, Caddyfile) and the docs.
+rem the server, the samples (systemd unit, Caddyfile) and the docs. No appsettings.json: the defaults are in the code,
+rem so an upgrade never overwrites the admin's settings.
 set "OUT=%CD%\artifacts\installer"
 set "PACKAGE=%OUT%\zip\kofre"
 set "ZIP=%OUT%\kofre-server-%VERSION%-%RUNTIME%.zip"
 if exist "%OUT%\zip" rmdir /s /q "%OUT%\zip"
-rem One file, compressed: the runtime and ASP.NET Core packed into Kofre.Server, beside appsettings.json.
+rem One file, compressed: the runtime and ASP.NET Core packed into Kofre.Server.
 dotnet publish "%PROJECT%" -c Release -r %RUNTIME% --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o "%PACKAGE%" || exit /b 1
 xcopy "samples" "%PACKAGE%\samples\" /e /i /q >nul || exit /b 1
 copy /y README.md "%PACKAGE%\" >nul || exit /b 1

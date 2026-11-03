@@ -25,7 +25,7 @@ Builds and tests (`build/build.sh` on Linux and macOS); fails below 95 % line co
 build\installer.cmd
 ```
 
-Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server as one file, `Kofre.Server` (self-contained: no .NET runtime needed on the machine), its `appsettings.json`, the samples and these docs.
+Builds `artifacts\installer\kofre-server-<version>-linux-x64.zip`: a `kofre` folder with the server as one file, `Kofre.Server` (self-contained: no .NET runtime needed on the machine), the samples and these docs. No `appsettings.json`: the defaults are in the code.
 
 ```
 Internet ──HTTPS──► Caddy (:80, :443) ──HTTP──► Kofre.Server (127.0.0.1:5080) ──► /var/lib/kofre
@@ -57,7 +57,7 @@ Needs a DNS name pointing to the server's public address, and ports 80 and 443 o
 
 Logs: `journalctl -u kofre -f`, or the files in `/var/log/kofre`.
 
-**Settings on the server** go in `/etc/kofre/secrets.env`, as environment variables (`Kofre__TrashDays=7`, `Kofre__Email__Host=…`), never in `/opt/kofre/appsettings.json`: each upgrade replaces that file.
+**Settings on the server** go in `/etc/kofre/secrets.env`, as environment variables (`Kofre__TrashDays=7`, `Kofre__Email__Host=…`): an upgrade never touches it, and the backup archives it. From 0.2 and 0.3-dev, an `/opt/kofre/appsettings.json` that only holds the defaults can be deleted.
 
 ### Upgrade
 1. Copy the zip to your home folder on the server (`scp`, WinSCP). Not into `/opt/kofre`: it belongs to root, and the running server must not be replaced file by file.
@@ -84,7 +84,7 @@ Logs: `journalctl -u kofre -f`, or the files in `/var/log/kofre`.
 The data in `/var/lib/kofre` and the settings in `/etc/kofre` are kept. No `/var/log/kofre/kofre.log` after the start: the unit is still the old one (`systemctl cat kofre`), go back to step 2.
 
 ### Backup and restore
-Every day at `Backup:Time` (03:00), the server writes `/var/backups/kofre/kofre-<date>.zip`: the data folder under `data/`, and the files of `Backup:ConfigFiles` under `config/` (`appsettings.json`, `secrets.env`). Meanwhile it is in **maintenance**: writes are refused (`503 maintenance`), reads still work. It first waits for the writes already running (`Backup:WritesTimeout`); past it, the backup is skipped.
+Every day at `Backup:Time` (03:00), the server writes `/var/backups/kofre/kofre-<date>.zip`: the data folder under `data/`, and the files of `Backup:ConfigFiles` under `config/` (`secrets.env`). Meanwhile it is in **maintenance**: writes are refused (`503 maintenance`), reads still work. It first waits for the writes already running (`Backup:WritesTimeout`); past it, the backup is skipped.
 
 | Kept | Default |
 | --- | --- |
@@ -92,7 +92,7 @@ Every day at `Backup:Time` (03:00), the server writes `/var/backups/kofre/kofre-
 | … of each of the last weeks | 4 (`KeepWeekly`) |
 | … of each of the last months | 12 (`KeepMonthly`) |
 
-The others are deleted after each backup: 23 archives at most. A failed backup is logged as an error and [emailed](#emails-to-the-admin).
+The others are deleted after each backup: 23 archives at most. A failed backup is logged as an error and [emailed](#emails-to-the-admin), a successful one emailed with its size.
 
 Copy the archives off the server (`rsync`, `scp`). They hold password hashes, the signing key and the SMTP password: store them as safely as the server; the clients' files in them are encrypted by them.
 
@@ -102,7 +102,6 @@ Restore, on a server installed as above with an empty `/var/lib/kofre` (steps 1,
 sudo systemctl stop kofre
 sudo unzip kofre-<date>.zip -d /tmp/kofre-restore
 sudo cp -a /tmp/kofre-restore/data/. /var/lib/kofre/
-sudo cp /tmp/kofre-restore/config/appsettings.json /opt/kofre/
 sudo mkdir -p /etc/kofre && sudo cp /tmp/kofre-restore/config/secrets.env /etc/kofre/
 sudo chown -R kofre /var/lib/kofre
 sudo chown root:kofre /etc/kofre/secrets.env && sudo chmod 640 /etc/kofre/secrets.env
@@ -113,7 +112,7 @@ sudo systemctl start kofre
 What was uploaded after the backup is not on the server any more. A lost signing key is not lost data: make a new one; devices renew their access with their refresh token.
 
 ### Signing key
-32 random bytes in base64, made once per server. Whoever has it can sign in as any account: keep it out of `appsettings.json` and of the repo. Changing it ends every access token at once; devices renew theirs with their refresh token, without signing in again.
+32 random bytes in base64, made once per server. Whoever has it can sign in as any account: keep it in `/etc/kofre/secrets.env`, out of the repo. Changing it ends every access token at once; devices renew theirs with their refresh token, without signing in again.
 
 On the server (Linux), into the file `kofre.service` reads:
 
@@ -134,7 +133,7 @@ dotnet run --project src/Kofre.Server
 ```
 
 ## Configuration
-The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__TrashDays=7`).
+Environment variables (`Kofre__TrashDays=7`, in `/etc/kofre/secrets.env` on the server), or the `Kofre` section of an `appsettings.json` beside the server. The defaults below are in the code. Logs: `Information`, `Warning` for ASP.NET Core, `Error` for its data protection (unused: no cookies nor forms); change them with `Logging__LogLevel__<category>`.
 
 | Setting | Default | |
 | --- | --- | --- |
@@ -156,7 +155,7 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `Enabled` | true | The daily backup |
 | `Folder` | `backups` | Where the archives are written, outside the data folder |
 | `Time` | `03:00` | The server's local time of the backup |
-| `ConfigFiles` | `appsettings.json` | Files archived under `config/`; a missing one is logged and skipped |
+| `ConfigFiles` | none (`kofre.service`: `secrets.env`) | Files archived under `config/`; a missing one is logged and skipped |
 | `WritesTimeout` | 10 min | How long the backup waits for the writes already running |
 | `KeepDaily`, `KeepWeekly`, `KeepMonthly` | 7, 4, 12 | Archives kept |
 
@@ -169,7 +168,7 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `MemoryEntries` | 1000 | Latest entries kept in memory, for the daily summary |
 
 ### Emails to the admin
-`Email:…`, through any SMTP server. Off by default. Put the password in `/etc/kofre/secrets.env` (`Kofre__Email__Password=…`), not in `appsettings.json`.
+`Email:…`, through any SMTP server. Off by default. Set it in `/etc/kofre/secrets.env`, the password included (`Kofre__Email__Password=…`). On, `Host`, `From` and `To` are checked at start: the server does not start without them.
 
 | Setting | Default | |
 | --- | --- | --- |
@@ -177,18 +176,25 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `Host`, `Port` | , 587 | The SMTP server |
 | `Security` | `StartTls` | `StartTls`, `SslOnConnect` (port 465), or `None` (an SMTP server on this machine only) |
 | `User`, `Password` | | Empty user: no sign-in |
-| `From`, `To` | | The sender, and the admin's address |
+| `From`, `To` | | The sender, and the admin's address. Some providers refuse a `From` other than `User` |
 | `SummaryTime` | `07:00` | The server's local time of the daily summary |
+| `BackupDone` | true | Email each successful backup too, not only the failed ones |
+| `MinFreeDiskPercent` | 20 | Free space of the data or backups disk below which the admin is told |
+| `MaxRefusedSignInsPerHour` | 50 | Refused sign-ins in an hour from which the admin is told |
+| `MaxPerHour` | 10 | Emails sent at most per hour |
 
 | Email | When |
 | --- | --- |
 | started | The server starts. *after an unclean stop* when the last run did not stop (crash, power loss): no stopping email came |
 | stopping | The server stops |
 | account waiting for approval | A sign-up |
+| backup done | Its archive, size and duration; the archives kept and their size (`BackupDone`) |
 | backup failed | With the reason |
-| daily summary | Accounts (those waiting listed), stores, the last backup, and the warnings and errors logged since the last summary (50 at most) |
+| disk space low, disk space back | Checked every hour and before each backup: once when the data or backups disk falls below `MinFreeDiskPercent`, once when both are back above it |
+| many sign-ins refused | `MaxRefusedSignInsPerHour` sign-ins refused for a wrong email or password within an hour: someone may be trying passwords. Again only once the count fell below it |
+| daily summary | Accounts (those waiting listed), stores, the last backup, the disks' free space and the size of the data and backups, and the warnings and errors logged since the last summary (50 at most) |
 
-A failed email is logged as a warning; the server goes on.
+**No flood:** past `MaxPerHour` emails within an hour, the others are only logged; the next one sent tells how many were not. The count is kept in `admin-mail.json`, so a server restarting in a loop does not reset it. A failed email is logged as a warning; the server goes on.
 
 ## Admin
 No admin UI: the admin edits the JSON files, read again at every request (no restart).
@@ -202,6 +208,7 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 ```
 <DataFolder>/
   server.running          there while the server runs: found at start, the last stop was unclean
+  admin-mail.json         the emails sent to the admin in the last hour, and those not sent (MaxPerHour)
   accounts.json           [{ id, email, passwordHash, created, approved, disabled }]
   tokens.json             refresh tokens, hashed (SHA-256), with their account and expiry
   account-data/<id>.json  { version, public, private, updated }: an account's data, opaque
