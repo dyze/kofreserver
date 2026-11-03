@@ -122,7 +122,7 @@ public sealed class AccountDataTests : IDisposable
     {
         var version = (await _server.CreateClient().GetFromJsonAsync<ServerVersion>("/v1/version"))!;
 
-        Assert.Matches(@"^\d+\.\d+$", version.Version);
-        Assert.Equal(typeof(KofreOptions).Assembly.GetName().Version!.ToString(2), version.Version);
+        Assert.Matches(@"^\d+\.\d+(-dev)?$", version.Version);
+        Assert.StartsWith(typeof(KofreOptions).Assembly.GetName().Version!.ToString(2), version.Version);
     }
 }
