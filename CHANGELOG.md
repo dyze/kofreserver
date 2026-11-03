@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3] - 2026-11-03
+
 ### Added
 - **Maintenance mode**: writes are refused with `503 maintenance` (`Retry-After`), reads still work. `GET /status` tells it, without signing in.
 - **Backup**: every day at a set time, a zip of the data folder and the configuration files, made in maintenance once the running writes end. The latest of each of the last 7 days, 4 weeks and 12 months is kept (`Backup` settings).
@@ -37,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Stores**: create and list, owner only for now; files uploaded once, never replaced; a feed of the files added; statistics.
 - **Trash**: deleting a store (its owner's password asked again) moves it to the trash. It can be restored from there until it is purged, after 30 days by default (`TrashDays`).
 
-[Unreleased]: https://github.com/dyze/kofreserver/compare/0.2...HEAD
+[Unreleased]: https://github.com/dyze/kofreserver/compare/0.3...HEAD
+[0.3]: https://github.com/dyze/kofreserver/compare/0.2...0.3
 [0.2]: https://github.com/dyze/kofreserver/compare/0.1...0.2
 [0.1]: https://github.com/dyze/kofreserver/releases/tag/0.1
