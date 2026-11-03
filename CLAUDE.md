@@ -23,7 +23,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - Built-in `ILogger` only, to the console (journald under systemd).
 - Every account or store action at **Information**, refusals at Warning when they matter, file transfers at **Debug**.
 - Never log a password, a token, a refresh token, or a file's content.
-- Logs stay local: 3 files x 1 MB, plus 1000 entries in memory.
+- Logs stay local: 5 files x 10 MB, plus 1000 entries in memory (defaults, `Logs` settings).
 
 ## Versioning rules
 - Format `MAJOR.MINOR`, starting at **0.1**.
