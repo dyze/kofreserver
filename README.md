@@ -55,7 +55,33 @@ Needs a DNS name pointing to the server's public address, and ports 80 and 443 o
 4. HTTPS: copy [`samples/Caddyfile`](samples/Caddyfile) to `/etc/caddy/Caddyfile`, **replace `kofre.example.org` with the server's DNS name**, then `sudo systemctl reload caddy`. With `ufw`: `sudo ufw allow 80,443/tcp`. Check `https://<name>/v1/version` from outside. A browser error such as `SSL_ERROR_INTERNAL_ERROR_ALERT` means Caddy has no certificate for that name: wrong name in the Caddyfile, DNS, or port 80 closed (`journalctl -u caddy`).
 5. Sign up from a client, then [approve](#admin) the account in `/var/lib/kofre/accounts.json`.
 
-Logs: `journalctl -u kofre -f`, or the files in `/var/log/kofre`. **Upgrade**: `sudo systemctl stop kofre`, unzip the new version over `/opt/kofre` (`unzip -o`), `chmod +x` again, `sudo systemctl start kofre`. The data in `/var/lib/kofre` is kept.
+Logs: `journalctl -u kofre -f`, or the files in `/var/log/kofre`.
+
+**Settings on the server** go in `/etc/kofre/secrets.env`, as environment variables (`Kofre__TrashDays=7`, `Kofre__Email__Host=…`), never in `/opt/kofre/appsettings.json`: each upgrade replaces that file.
+
+### Upgrade
+1. Copy the zip to your home folder on the server (`scp`, WinSCP). Not into `/opt/kofre`: it belongs to root, and the running server must not be replaced file by file.
+2. Install it, with the unit too: the server uses `/etc/systemd/system/kofre.service`, a copy that an unzip does not update.
+   ```
+   sudo systemctl stop kofre
+   sudo unzip -o ~/kofre-server-<version>-linux-x64.zip -d /opt
+   sudo chmod +x /opt/kofre/Kofre.Server
+   sudo cp /opt/kofre/samples/kofre.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   ```
+   Changes made by hand to the unit are lost: put them in a drop-in instead (`sudo systemctl edit kofre`).
+3. From 0.2 or older only: the backups folder, which the unit needs to start.
+   ```
+   sudo mkdir -p /var/backups/kofre && sudo chown kofre /var/backups/kofre && sudo chmod 700 /var/backups/kofre
+   ```
+4. Start, then check the version and the log:
+   ```
+   sudo systemctl start kofre
+   curl http://127.0.0.1:5080/v1/version
+   sudo tail /var/log/kofre/kofre.log
+   ```
+
+The data in `/var/lib/kofre` and the settings in `/etc/kofre` are kept. No `/var/log/kofre/kofre.log` after the start: the unit is still the old one (`systemctl cat kofre`), go back to step 2.
 
 ### Backup and restore
 Every day at `Backup:Time` (03:00), the server writes `/var/backups/kofre/kofre-<date>.zip`: the data folder under `data/`, and the files of `Backup:ConfigFiles` under `config/` (`appsettings.json`, `secrets.env`). Meanwhile it is in **maintenance**: writes are refused (`503 maintenance`), reads still work. It first waits for the writes already running (`Backup:WritesTimeout`); past it, the backup is skipped.
