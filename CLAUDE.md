@@ -6,7 +6,7 @@ Rules for working on **kofreserver** together. Read first:
 - `ROADMAP.md`: planned versions and ideas
 
 ## Project in one line
-Kofre: a generic, blind, write-once store of files with accounts and members, behind a REST API, for apps that encrypt their own data.
+Kofreserver: a generic, blind, write-once store of files with accounts and members, behind a REST API, for apps that encrypt their own data.
 
 ## Architecture rules (keep it this way)
 - **Generic.** No client's term (no vault, node, key epoch...) in the API, code, files or docs: only accounts, stores, members, files, feed. Paths and contents are opaque: never read a format or assume a file name pattern.
@@ -23,11 +23,12 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - Built-in `ILogger` only, to the console (journald under systemd).
 - Every account or store action at **Information**, refusals at Warning when they matter, file transfers at **Debug**.
 - Never log a password, a token, a refresh token, or a file's content.
+- Logs stay local: 3 files x 1 MB, plus 1000 entries in memory.
 
 ## Versioning rules
 - Format `MAJOR.MINOR`, starting at **0.1**.
 - `<Version>` in `Directory.Build.props` is the only place the version is written: not in code, docs or scripts.
-- Bump it only when the owner asks.
+- Bump it only when the owner asks. Between releases it ends in `-dev` (`0.10-dev`): a release commit drops `-dev`; `<next>-dev` is set only once the release is published (tag, files, GitHub release), when the owner says so.
 
 ## Repo layout
 `src/`, `tests/`, `samples/`, `build/` (release scripts: `installer.cmd`), `.config/` (dotnet tools), `artifacts/` (ignored). Do not add top-level folders without asking.
