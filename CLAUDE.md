@@ -31,7 +31,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - Bump it only when the owner asks. Between releases it ends in `-dev` (`0.10-dev`): a release commit drops `-dev`; `<next>-dev` is set only once the release is published (tag, files, GitHub release), when the owner says so.
 
 ## Repo layout
-`src/`, `tests/`, `samples/`, `build/` (release scripts: `installer.cmd`), `.config/` (dotnet tools), `artifacts/` (ignored). Do not add top-level folders without asking.
+`src/`, `tests/`, `samples/`, `build/` (scripts: `build.cmd`, `build.sh`, `installer.cmd`), `.config/` (dotnet tools), `artifacts/` (ignored). Do not add top-level folders without asking.
 
 ## How we work
 - **Concise answers.** Short explanations, diagrams over long text.
@@ -39,7 +39,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - **Do it well.** Prefer the clean, simple solution over the quick hack.
 - **Ask before** adding a dependency, changing the architecture, a breaking API change, or a large refactor.
 - **Tests.** Every change comes with xUnit tests, through the API on the in-memory server where possible.
-- **Build honesty.** Claude builds and runs the tests itself (`build.cmd`) and reports the real result, errors and coverage included. Never claim the code builds without having run it.
+- **Build honesty.** Claude builds and runs the tests itself (`build\build.cmd`) and reports the real result, errors and coverage included. Never claim the code builds without having run it.
 - **Docs.** One home per fact: behavior, configuration, admin and API → `README.md`; planned features → `ROADMAP.md`; changes → `CHANGELOG.md`, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) (`[Unreleased]`, then `[<version>] - <date>` at release). Prefer tables to long descriptions. Update them when behavior changes.
 - **Don't touch** `LICENSE`.
 
@@ -48,7 +48,7 @@ Only those listed in `README.md#tests`. Ask before adding one.
 * Write code for today's problems, not tomorrow's fantasies.
 * Remove dead code; avoid redundant code.
 * Keep files short: split large classes or methods into separate `.cs` files.
-* Line coverage **>= 95%**, enforced by `build.cmd`.
+* Line coverage **>= 95%**, enforced by `build\build.cmd`.
 * Reduce build warnings.
 
 ## Git
@@ -58,4 +58,4 @@ Only those listed in `README.md#tests`. Ask before adding one.
 - No AI attribution in commit messages or PR descriptions (no `Co-Authored-By: Claude …`, no "Generated with Claude Code").
 
 ## Definition of done
-Code is written, tests cover the new behavior, docs are updated, and `build.cmd` passes.
+Code is written, tests cover the new behavior, docs are updated, and `build\build.cmd` passes.

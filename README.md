@@ -14,10 +14,10 @@ of its clients. What each version changed: [CHANGELOG.md](CHANGELOG.md).
 ## Build
 
 ```
-build.cmd
+build\build.cmd
 ```
 
-Builds and tests (`build.sh` on Linux and macOS); fails below 95 % line coverage. Needs the .NET 10 SDK. A server started from `artifacts\` is stopped first, as it locks its files.
+Builds and tests (`build/build.sh` on Linux and macOS); fails below 95 % line coverage. Needs the .NET 10 SDK. A server started from `artifacts\` is stopped first, as it locks its files.
 
 ## Run
 
@@ -228,6 +228,6 @@ The **fence** is an optional number per store, for clients that must stop writer
 Paths: segments of letters, digits, `.`, `_` and `-`, separated by `/` (16 at most, 512 characters).
 
 ## Tests
-`tests/Kofre.Server.Tests`: xUnit, the API on an in-memory server (`Microsoft.AspNetCore.Mvc.Testing`). Line coverage ≥ 95 %, enforced by `build.cmd`.
+`tests/Kofre.Server.Tests`: xUnit, the API on an in-memory server (`Microsoft.AspNetCore.Mvc.Testing`). Line coverage ≥ 95 %, enforced by `build\build.cmd`.
 
 Dependencies: ASP.NET Core (shared framework), `Microsoft.AspNetCore.Authentication.JwtBearer`, `MailKit` (emails; `System.Security.Cryptography.Pkcs` pinned to a patched version for it); for the tests `Microsoft.AspNetCore.Mvc.Testing`, xUnit, `coverlet.msbuild`, and `dotnet-reportgenerator-globaltool` (local tool, `.config/dotnet-tools.json`).
