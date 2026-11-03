@@ -91,9 +91,29 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (Directory.Exists(Root))
+        DeleteFolder(Root);
+    }
+
+    /// <summary>
+    /// Deletes a test's folder, tried again a few times: on Windows, the antivirus or the search indexer
+    /// opens the files just written for a moment. A folder still in use is left in the temporary folder.
+    /// </summary>
+    public static void DeleteFolder(string folder)
+    {
+        for (var attempt = 1; Directory.Exists(folder); attempt++)
         {
-            Directory.Delete(Root, recursive: true);
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException) when (attempt < 10)
+            {
+                Thread.Sleep(50);
+            }
+            catch (IOException)
+            {
+                return;
+            }
         }
     }
 }

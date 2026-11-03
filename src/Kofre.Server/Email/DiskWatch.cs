@@ -20,22 +20,24 @@ internal sealed class DiskWatch(IOptions<KofreOptions> options, IDiskSpace disks
 
     public void Check()
     {
-        IReadOnlyList<(string Name, DiskUsage Usage)> usages;
-        try
-        {
-            usages = Measure();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            log.LogWarning(exception, "Disk space could not be measured");
-            return;
-        }
-
         var minimum = options.Value.Email.MinFreeDiskPercent;
-        var low = usages.Where(item => item.Usage.FreePercent < minimum).Select(item => item.Name).ToHashSet();
+        IReadOnlyList<(string Name, DiskUsage Usage)> usages;
+        HashSet<string> low;
         bool newlyLow, recovered;
+        // Measured and compared at once: a check measuring earlier must not overwrite a later one (the hourly one and the backup's).
         lock (_lock)
         {
+            try
+            {
+                usages = Measure();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                log.LogWarning(exception, "Disk space could not be measured");
+                return;
+            }
+
+            low = usages.Where(item => item.Usage.FreePercent < minimum).Select(item => item.Name).ToHashSet();
             newlyLow = !low.IsSubsetOf(_low);
             recovered = low.Count == 0 && _low.Count > 0;
             _low = low;

@@ -64,7 +64,7 @@ public sealed class AlertTests
         }
         finally
         {
-            Directory.Delete(folder, recursive: true);
+            KofreServer.DeleteFolder(folder);
         }
     }
 

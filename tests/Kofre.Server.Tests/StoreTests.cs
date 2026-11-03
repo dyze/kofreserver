@@ -10,7 +10,7 @@ public sealed class StoreTests : IDisposable
 
     public StoreTests() => _store = Store.Create(Guid.NewGuid(), _folder, Guid.NewGuid(), DateTimeOffset.UtcNow);
 
-    public void Dispose() => Directory.Delete(_folder, recursive: true);
+    public void Dispose() => KofreServer.DeleteFolder(_folder);
 
     [Fact]
     public async Task AFileMovedButNotInTheFeed_IsAddedToTheFeed_AtTheNextUpload()

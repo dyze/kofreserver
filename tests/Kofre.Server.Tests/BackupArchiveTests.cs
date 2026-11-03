@@ -9,7 +9,7 @@ public sealed class BackupArchiveTests : IDisposable
 
     public BackupArchiveTests() => Directory.CreateDirectory(_root);
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    public void Dispose() => KofreServer.DeleteFolder(_root);
 
     [Fact]
     public async Task TheExcludedFilesAndFolders_AreLeftOut()
