@@ -38,6 +38,9 @@ internal sealed class StoreRepository(IOptions<KofreOptions> options, TimeProvid
             })
             .ToList();
 
+    /// <summary>How many stores there are, in the trash or not.</summary>
+    public int Count() => All().Count();
+
     /// <summary>Deletes for good the stores in the trash for longer than <see cref="KofreOptions.TrashDays"/>.</summary>
     public int PurgeTrash()
     {

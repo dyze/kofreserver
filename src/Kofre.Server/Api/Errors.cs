@@ -22,5 +22,7 @@ internal static class Errors
     /// <summary>An upload below the store's fence, or a fence lowered: the current fence returned.</summary>
     public static IResult Fenced(string code, long? fence) => Results.Json(new FenceRefusal(code, fence), statusCode: StatusCodes.Status409Conflict);
 
+    public static IResult Unavailable(string code) => Results.Json(new ErrorBody(code), statusCode: StatusCodes.Status503ServiceUnavailable);
+
     public static IResult TooLarge() => Results.Json(new ErrorBody("too-large"), statusCode: StatusCodes.Status413PayloadTooLarge);
 }

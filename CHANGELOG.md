@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Maintenance mode**: writes are refused with `503 maintenance` (`Retry-After`), reads still work. `GET /status` tells it, without signing in.
+- **Backup**: every day at a set time, a zip of the data folder and the configuration files, made in maintenance once the running writes end. The latest of each of the last 7 days, 4 weeks and 12 months is kept (`Backup` settings).
+- **Emails to the admin** through SMTP (MailKit): server started (after an unclean stop or not) and stopping, account waiting for approval, backup failed, and a daily summary (`Email` settings, off by default).
+- **Log files**: `kofre.log`, rotated over 5 files of 10 MB; the latest 1000 entries kept in memory for the summary (`Logs` settings).
+
 ## [0.2] - 2026-10-24
 
 ### Added

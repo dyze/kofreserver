@@ -186,7 +186,7 @@ public sealed class StoreApiTests : IDisposable
         Assert.Equal(HttpStatusCode.NoContent, (await Send(ada, HttpMethod.Post, $"/v1/stores/{kept}/restore", KofreServer.Password)).StatusCode);
     }
 
-    private static async Task<Guid> Create(HttpClient client)
+    internal static async Task<Guid> Create(HttpClient client)
     {
         var response = await client.PostAsync("/v1/stores", null);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -197,7 +197,7 @@ public sealed class StoreApiTests : IDisposable
     private static async Task SignInAgain(HttpClient client) =>
         client.DefaultRequestHeaders.Authorization = new("Bearer", (await KofreServer.SignIn(client, "ada@example.com")).AccessToken);
 
-    private static ByteArrayContent Bytes(string text) => new(Encoding.UTF8.GetBytes(text));
+    internal static ByteArrayContent Bytes(string text) => new(Encoding.UTF8.GetBytes(text));
 
     private void AddMember(Guid store, Guid account, Role role)
     {

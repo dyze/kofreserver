@@ -1,6 +1,10 @@
 using System.Threading.RateLimiting;
 using Kofre.Server.Accounts;
 using Kofre.Server.Api;
+using Kofre.Server.Backups;
+using Kofre.Server.Email;
+using Kofre.Server.Logging;
+using Kofre.Server.Maintenance;
 using Kofre.Server.Storage;
 using Kofre.Server.Stores;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,12 +28,25 @@ public static class KofreApp
             .Bind(builder.Configuration.GetSection(KofreOptions.Section))
             .Validate(options => options.HasValidSigningKey, KofreOptions.SigningKeyRule)
             .ValidateOnStart();
+        services.AddOptions<LogOptions>().Bind(builder.Configuration.GetSection(LogOptions.Section));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<MemoryLog>();
+        services.AddSingleton<ILoggerProvider>(provider => provider.GetRequiredService<MemoryLog>());
+        services.AddSingleton<ILoggerProvider, FileLog>();
         services.AddSingleton<AccountStore>();
         services.AddSingleton<AccountDataStore>();
         services.AddSingleton<TokenService>();
         services.AddSingleton<StoreRepository>();
+        services.AddSingleton<MaintenanceMode>();
+        services.AddSingleton<IMailSender, MailKitSender>();
+        services.AddSingleton<AdminMail>();
+        // Started first, stopped last: its emails frame the others' work.
+        services.AddHostedService<ServiceLifecycle>();
         services.AddHostedService<TrashPurge>();
+        services.AddSingleton<Backup>();
+        services.AddHostedService(provider => provider.GetRequiredService<Backup>());
+        services.AddSingleton<DailySummary>();
+        services.AddHostedService(provider => provider.GetRequiredService<DailySummary>());
         services.ConfigureHttpJsonOptions(json => json.SerializerOptions.Converters.Add(JsonFile.Options.Converters[0]));
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -73,12 +90,14 @@ public static class KofreApp
 
         var app = builder.Build();
         app.UseForwardedHeaders();
+        app.Use(MaintenanceGate.Handle);
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseRateLimiter();
 
         var api = app.MapGroup("/v1");
         VersionEndpoint.Map(api);
+        StatusEndpoint.Map(api);
         AccountEndpoints.Map(api);
         AccountDataEndpoints.Map(api);
         StoreEndpoints.Map(api);

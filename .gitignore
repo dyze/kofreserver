@@ -24,3 +24,7 @@ Thumbs.db
 
 # Obsidian
 /.obsidian/**
+
+# Logs and backups of a server run from the repo
+src/Kofre.Server/logs/
+src/Kofre.Server/backups/*.zip

@@ -41,6 +41,7 @@ Needs a DNS name pointing to the server's public address, and ports 80 and 443 o
    sudo chmod +x /opt/kofre/Kofre.Server
    sudo useradd --system --no-create-home kofre
    sudo mkdir -p /var/lib/kofre && sudo chown kofre /var/lib/kofre
+   sudo mkdir -p /var/backups/kofre && sudo chown kofre /var/backups/kofre && sudo chmod 700 /var/backups/kofre
    ```
    The zip keeps no Unix permissions: `chmod +x` makes the server runnable.
 2. Make the [signing key](#signing-key).
@@ -54,26 +55,32 @@ Needs a DNS name pointing to the server's public address, and ports 80 and 443 o
 4. HTTPS: copy [`samples/Caddyfile`](samples/Caddyfile) to `/etc/caddy/Caddyfile`, **replace `kofre.example.org` with the server's DNS name**, then `sudo systemctl reload caddy`. With `ufw`: `sudo ufw allow 80,443/tcp`. Check `https://<name>/v1/version` from outside. A browser error such as `SSL_ERROR_INTERNAL_ERROR_ALERT` means Caddy has no certificate for that name: wrong name in the Caddyfile, DNS, or port 80 closed (`journalctl -u caddy`).
 5. Sign up from a client, then [approve](#admin) the account in `/var/lib/kofre/accounts.json`.
 
-Logs: `journalctl -u kofre -f`. **Upgrade**: `sudo systemctl stop kofre`, unzip the new version over `/opt/kofre` (`unzip -o`), `chmod +x` again, `sudo systemctl start kofre`. The data in `/var/lib/kofre` is kept.
+Logs: `journalctl -u kofre -f`, or the files in `/var/log/kofre`. **Upgrade**: `sudo systemctl stop kofre`, unzip the new version over `/opt/kofre` (`unzip -o`), `chmod +x` again, `sudo systemctl start kofre`. The data in `/var/lib/kofre` is kept.
 
 ### Backup and restore
-Everything is in two folders: the data (`/var/lib/kofre`) and the signing key (`/etc/kofre`). Files are only added, never changed, but `accounts.json`, `tokens.json` and `store.json` are: stop the server for a consistent copy (clients that work offline wait for it).
+Every day at `Backup:Time` (03:00), the server writes `/var/backups/kofre/kofre-<date>.zip`: the data folder under `data/`, and the files of `Backup:ConfigFiles` under `config/` (`appsettings.json`, `secrets.env`). Meanwhile it is in **maintenance**: writes are refused (`503 maintenance`), reads still work. It first waits for the writes already running (`Backup:WritesTimeout`); past it, the backup is skipped.
 
-```
-sudo systemctl stop kofre
-sudo tar -czf kofre-backup-$(date +%F).tar.gz -C / var/lib/kofre etc/kofre
-sudo systemctl start kofre
-```
+| Kept | Default |
+| --- | --- |
+| The latest archive of each of the last days | 7 (`KeepDaily`) |
+| … of each of the last weeks | 4 (`KeepWeekly`) |
+| … of each of the last months | 12 (`KeepMonthly`) |
 
-Keep the archive off the server. It holds password hashes and the signing key: store it as safely as the server; the clients' files in it are encrypted by them.
+The others are deleted after each backup: 23 archives at most. A failed backup is logged as an error and [emailed](#emails-to-the-admin).
+
+Copy the archives off the server (`rsync`, `scp`). They hold password hashes, the signing key and the SMTP password: store them as safely as the server; the clients' files in them are encrypted by them.
 
 Restore, on a server installed as above with an empty `/var/lib/kofre` (steps 1, 3 and 4; the key comes from the archive):
 
 ```
 sudo systemctl stop kofre
-sudo tar -xzf kofre-backup-<date>.tar.gz -C /
+sudo unzip kofre-<date>.zip -d /tmp/kofre-restore
+sudo cp -a /tmp/kofre-restore/data/. /var/lib/kofre/
+sudo cp /tmp/kofre-restore/config/appsettings.json /opt/kofre/
+sudo mkdir -p /etc/kofre && sudo cp /tmp/kofre-restore/config/secrets.env /etc/kofre/
 sudo chown -R kofre /var/lib/kofre
 sudo chown root:kofre /etc/kofre/secrets.env && sudo chmod 640 /etc/kofre/secrets.env
+sudo rm -r /tmp/kofre-restore
 sudo systemctl start kofre
 ```
 
@@ -116,6 +123,47 @@ The `Kofre` section of `appsettings.json`, or environment variables (`Kofre__Tra
 | `PasswordIterations` | 600 000 | PBKDF2-SHA256 iterations of new password hashes |
 | `AccessTokenLifetime`, `RefreshTokenLifetime` | 15 min, 30 days | |
 
+**Backup** (`Backup:…`, see [Backup and restore](#backup-and-restore)):
+
+| Setting | Default | |
+| --- | --- | --- |
+| `Enabled` | true | The daily backup |
+| `Folder` | `backups` | Where the archives are written, outside the data folder |
+| `Time` | `03:00` | The server's local time of the backup |
+| `ConfigFiles` | `appsettings.json` | Files archived under `config/`; a missing one is logged and skipped |
+| `WritesTimeout` | 10 min | How long the backup waits for the writes already running |
+| `KeepDaily`, `KeepWeekly`, `KeepMonthly` | 7, 4, 12 | Archives kept |
+
+**Logs** (`Logs:…`), besides the console:
+
+| Setting | Default | |
+| --- | --- | --- |
+| `Folder` | `logs` | Where `kofre.log` is written; empty: no file |
+| `MaxFiles`, `MaxFileBytes` | 5, 10 MB | Past its size, `kofre.log` becomes `kofre.1.log`, and so on; the oldest is deleted. 50 MB at most |
+| `MemoryEntries` | 1000 | Latest entries kept in memory, for the daily summary |
+
+### Emails to the admin
+`Email:…`, through any SMTP server. Off by default. Put the password in `/etc/kofre/secrets.env` (`Kofre__Email__Password=…`), not in `appsettings.json`.
+
+| Setting | Default | |
+| --- | --- | --- |
+| `Enabled` | false | |
+| `Host`, `Port` | , 587 | The SMTP server |
+| `Security` | `StartTls` | `StartTls`, `SslOnConnect` (port 465), or `None` (an SMTP server on this machine only) |
+| `User`, `Password` | | Empty user: no sign-in |
+| `From`, `To` | | The sender, and the admin's address |
+| `SummaryTime` | `07:00` | The server's local time of the daily summary |
+
+| Email | When |
+| --- | --- |
+| started | The server starts. *after an unclean stop* when the last run did not stop (crash, power loss): no stopping email came |
+| stopping | The server stops |
+| account waiting for approval | A sign-up |
+| backup failed | With the reason |
+| daily summary | Accounts (those waiting listed), stores, the last backup, and the warnings and errors logged since the last summary (50 at most) |
+
+A failed email is logged as a warning; the server goes on.
+
 ## Admin
 No admin UI: the admin edits the JSON files, read again at every request (no restart).
 
@@ -127,6 +175,7 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 
 ```
 <DataFolder>/
+  server.running          there while the server runs: found at start, the last stop was unclean
   accounts.json           [{ id, email, passwordHash, created, approved, disabled }]
   tokens.json             refresh tokens, hashed (SHA-256), with their account and expiry
   account-data/<id>.json  { version, public, private, updated }: an account's data, opaque
@@ -138,14 +187,15 @@ No admin UI: the admin edits the JSON files, read again at every request (no res
 ```
 
 - A file is streamed to `incoming/`, moved to its path, then added to the feed. A crash between both leaves a file missing from the feed: it is added when it is uploaded again.
-- Logs: the console (journald under systemd). Never a password, a token or a file's content.
+- Logs: the console (journald under systemd) and the [log files](#configuration). Never a password, a token or a file's content.
 
 ## API (`/v1`)
-JSON; errors are `{ "error": "<code>" }`. Every call but the version, sign-up, sign-in and refresh needs `Authorization: Bearer <access token>`; access to a store is checked at every request against its members.
+JSON; errors are `{ "error": "<code>" }`. Every call but the version, status, sign-up, sign-in and refresh needs `Authorization: Bearer <access token>`; access to a store is checked at every request against its members.
 
 | Method and path | Does | Errors |
 | --- | --- | --- |
 | `GET /version` | The server's version: `{version}`, without signing in | |
+| `GET /status` | `{maintenance}`, without signing in: true during a backup | |
 | `POST /accounts` `{email, password}` | Sign up: `202`, waits for approval | `invalid-email`, `weak-password` (under 10 characters), `email-taken`, `sign-up-closed` (403) |
 | `POST /sessions` `{email, password}` | Sign in: `{accessToken, accessExpires, refreshToken}` | `wrong-credentials` (401), `account-not-approved`, `account-disabled` (403) |
 | `POST /sessions/refresh` `{refreshToken}` | A new session; the refresh token is used once | `session-ended` (401), `account-inactive` (403) |
@@ -171,6 +221,8 @@ JSON; errors are `{ "error": "<code>" }`. Every call but the version, sign-up, s
 
 Store errors: `no-store` (404), `not-allowed`, `store-deleted` (403), `account-inactive` (403, any call). Too many sign-ins: `429`.
 
+**Maintenance** (during a backup): every call but `GET` is refused with `503 maintenance` and `Retry-After: 60`, sign-ins and refreshes included. Reads still work. Retry later, or poll `GET /status`.
+
 The **fence** is an optional number per store, for clients that must stop writers that are behind: the server only compares it with the `Store-Fence` header, and knows nothing of what it means. Off, the header is ignored.
 
 Paths: segments of letters, digits, `.`, `_` and `-`, separated by `/` (16 at most, 512 characters).
@@ -178,4 +230,4 @@ Paths: segments of letters, digits, `.`, `_` and `-`, separated by `/` (16 at mo
 ## Tests
 `tests/Kofre.Server.Tests`: xUnit, the API on an in-memory server (`Microsoft.AspNetCore.Mvc.Testing`). Line coverage ≥ 95 %, enforced by `build.cmd`.
 
-Dependencies: ASP.NET Core (shared framework), `Microsoft.AspNetCore.Authentication.JwtBearer`; for the tests `Microsoft.AspNetCore.Mvc.Testing`, xUnit, `coverlet.msbuild`, and `dotnet-reportgenerator-globaltool` (local tool, `.config/dotnet-tools.json`).
+Dependencies: ASP.NET Core (shared framework), `Microsoft.AspNetCore.Authentication.JwtBearer`, `MailKit` (emails; `System.Security.Cryptography.Pkcs` pinned to a patched version for it); for the tests `Microsoft.AspNetCore.Mvc.Testing`, xUnit, `coverlet.msbuild`, and `dotnet-reportgenerator-globaltool` (local tool, `.config/dotnet-tools.json`).

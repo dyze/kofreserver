@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Kofre.Server.Accounts;
+using Kofre.Server.Email;
 using Microsoft.Extensions.Options;
 
 namespace Kofre.Server.Api;
@@ -31,7 +32,7 @@ internal static class AccountEndpoints
         api.MapPut("/accounts/me/password", ChangePassword).RequireAuthorization().AddEndpointFilter(Caller.RequireActive);
     }
 
-    private static IResult SignUp(Credentials credentials, AccountStore accounts, IOptions<KofreOptions> options, TimeProvider clock, ILogger<Account> log)
+    private static IResult SignUp(Credentials credentials, AccountStore accounts, IOptions<KofreOptions> options, TimeProvider clock, AdminMail mail, ILogger<Account> log)
     {
         var email = credentials.Email?.Trim() ?? "";
         if (!IsEmail(email))
@@ -57,6 +58,7 @@ internal static class AccountEndpoints
         }
 
         log.LogInformation("Account {Account} signed up, waiting for approval", account.Id);
+        mail.Post("account waiting for approval", $"{account.Email} ({account.Id}) signed up. Approve or disable it in {AccountStore.FileName}.");
         return Results.Accepted(value: new SignedUp(account.Id));
     }
 

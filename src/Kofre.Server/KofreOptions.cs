@@ -1,3 +1,6 @@
+using Kofre.Server.Backups;
+using Kofre.Server.Email;
+
 namespace Kofre.Server;
 
 /// <summary>The server's settings: the <c>Kofre</c> section of its configuration (appsettings.json, environment).</summary>
@@ -33,6 +36,10 @@ public sealed class KofreOptions
 
     /// <summary>Largest public or private part of an account's data.</summary>
     public int MaxAccountDataBytes { get; set; } = 64 * 1024;
+
+    public BackupOptions Backup { get; set; } = new();
+
+    public EmailOptions Email { get; set; } = new();
 
     public const string SigningKeyRule = $"{Section}:{nameof(SigningKey)} must be at least 32 bytes in base64";
 

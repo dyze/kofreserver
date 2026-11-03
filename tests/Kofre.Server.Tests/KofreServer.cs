@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using Kofre.Server.Email;
 using Kofre.Server.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -13,7 +14,16 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
 {
     public const string Password = "correct horse battery";
 
-    public string DataFolder { get; } = Path.Combine(Path.GetTempPath(), "kofre-tests-" + Guid.NewGuid().ToString("N"));
+    /// <summary>Holds the data, logs and backups folders.</summary>
+    public string Root { get; } = Path.Combine(Path.GetTempPath(), "kofre-tests-" + Guid.NewGuid().ToString("N"));
+
+    public string DataFolder => Path.Combine(Root, "data");
+
+    public string LogsFolder => Path.Combine(Root, "logs");
+
+    public string BackupsFolder => Path.Combine(Root, "backups");
+
+    public FakeMailSender Mail { get; } = new();
 
     public ManualClock Clock { get; } = new();
 
@@ -56,20 +66,28 @@ internal sealed class KofreServer(Dictionary<string, string>? settings = null) :
         builder.UseSetting("Kofre:PasswordIterations", "10");
         builder.UseSetting("Kofre:SignInsPerMinute", "1000");
         builder.UseSetting("Kofre:LookupsPerMinute", "1000");
+        builder.UseSetting("Kofre:Logs:Folder", LogsFolder);
+        builder.UseSetting("Kofre:Backup:Folder", BackupsFolder);
+        builder.UseSetting("Kofre:Backup:Enabled", "false");
+        builder.UseSetting("Kofre:Backup:ConfigFiles:0", Path.Combine(Root, "appsettings.json"));
         foreach (var (key, value) in settings ?? [])
         {
             builder.UseSetting("Kofre:" + key, value);
         }
 
-        builder.ConfigureServices(services => services.AddSingleton<TimeProvider>(Clock));
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<TimeProvider>(Clock);
+            services.AddSingleton<IMailSender>(Mail);
+        });
     }
 
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (Directory.Exists(DataFolder))
+        if (Directory.Exists(Root))
         {
-            Directory.Delete(DataFolder, recursive: true);
+            Directory.Delete(Root, recursive: true);
         }
     }
 }

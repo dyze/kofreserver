@@ -15,6 +15,8 @@ internal sealed class AccountStore(IOptions<KofreOptions> options)
 
     private string FilePath => Path.Combine(options.Value.DataFolder, FileName);
 
+    public IReadOnlyList<Account> All() => ReadAll();
+
     public Account? Find(Guid id) => ReadAll().FirstOrDefault(account => account.Id == id);
 
     public Account? FindByEmail(string email) => ReadAll().FirstOrDefault(account => SameEmail(account.Email, email));
