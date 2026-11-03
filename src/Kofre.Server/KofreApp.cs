@@ -23,6 +23,8 @@ public static class KofreApp
     {
         var builder = WebApplication.CreateBuilder(args);
         var services = builder.Services;
+        // The console only (journald under systemd), besides the files and memory below: no Windows event log, no debugger output.
+        builder.Logging.ClearProviders().AddConsole();
 
         services.AddOptions<KofreOptions>()
             .Bind(builder.Configuration.GetSection(KofreOptions.Section))

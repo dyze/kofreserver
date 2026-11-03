@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Emails to the admin** through SMTP (MailKit): server started (after an unclean stop or not) and stopping, account waiting for approval, backup failed, and a daily summary (`Email` settings, off by default).
 - **Log files**: `kofre.log`, rotated over 5 files of 10 MB; the latest 1000 entries kept in memory for the summary (`Logs` settings).
 
+### Changed
+- Logs go to the console and the log files only: no more Windows event log or debugger output.
+- `build.cmd` and `build.sh` moved to `build/`.
+
 ## [0.2] - 2026-10-24
 
 ### Added

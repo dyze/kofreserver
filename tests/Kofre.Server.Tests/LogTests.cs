@@ -1,5 +1,6 @@
 using Kofre.Server.Logging;
 using Kofre.Server.Scheduling;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Kofre.Server.Tests;
@@ -14,6 +15,14 @@ public sealed class LogTests
         server.Service<ILogger<LogTests>>().LogInformation("Something happened");
 
         Assert.Contains("INF Kofre.Server.Tests.LogTests: Something happened", File.ReadAllText(Path.Combine(server.LogsFolder, FileLog.NameOf(0))), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnlyTheConsoleTheFilesAndTheMemory_Log()
+    {
+        using var server = new KofreServer();
+
+        Assert.Equal(["ConsoleLoggerProvider", "FileLog", "MemoryLog"], server.Services.GetServices<ILoggerProvider>().Select(provider => provider.GetType().Name).Order());
     }
 
     [Fact]
